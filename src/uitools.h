@@ -1,5 +1,6 @@
 float battery_percentage1;
 float battery_percentage2;
+float battery_percentage3;
 bool state_led1;
 bool state_led2;
 bool state_led3;
@@ -52,4 +53,14 @@ bool get_var_state_led3()
 void set_var_state_led3(bool value)
 {
     state_led3 = !value;
+}
+
+float get_var_battery_percentage3()
+{
+    return battery_percentage3;
+}
+
+void set_var_battery_percentage3(float value)
+{
+    battery_percentage3 = value;
 }

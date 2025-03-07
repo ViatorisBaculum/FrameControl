@@ -155,6 +155,13 @@ void updateBacklight()
   smartdisplay_lcd_set_backlight(isActive ? BACKLIGHT_ACTIVE : BACKLIGHT_INACTIVE);
 }
 
+void updateBatteryPercentage()
+{
+  set_var_battery_percentage1(receivers[0].receivedData.measurement);
+  set_var_battery_percentage2(receivers[1].receivedData.measurement);
+  set_var_battery_percentage3(receivers[2].receivedData.measurement);
+}
+
 void setup()
 {
 #ifdef ARDUINO_USB_CDC_ON_BOOT

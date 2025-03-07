@@ -7,6 +7,13 @@
 extern "C" {
 #endif
 
+// Style: BatteryArc
+lv_style_t *get_style_battery_arc_INDICATOR_DEFAULT();
+lv_style_t *get_style_battery_arc_MAIN_DEFAULT();
+lv_style_t *get_style_battery_arc_KNOB_DEFAULT();
+void add_style_battery_arc(lv_obj_t *obj);
+void remove_style_battery_arc(lv_obj_t *obj);
+
 
 
 #ifdef __cplusplus
