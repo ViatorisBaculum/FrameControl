@@ -6,12 +6,13 @@
 #include <ui/vars.h>
 #include <WiFi.h>
 #include <uitools.h>
+#include <Preferences.h>
 
 // const confs
 constexpr uint8_t RECEIVER_MACS[][6] = {
     {0x1C, 0x69, 0x20, 0xCE, 0x68, 0x50}, // Receiver 1
-    {0xF0, 0xF5, 0xBD, 0x02, 0xEE, 0xB8}, // Receiver 2
-    {0xF0, 0xF5, 0xBD, 0x02, 0xEE, 0xB8}  // Receiver 3
+    {0x40, 0x4C, 0xCA, 0x5D, 0xF1, 0x30}, // Receiver 2
+    {0xF0, 0xF5, 0xBD, 0x01, 0x96, 0xE0}  // Receiver 3
 };
 constexpr size_t NUM_RECEIVERS = sizeof(RECEIVER_MACS) / sizeof(RECEIVER_MACS[0]);
 constexpr uint32_t SEND_INTERVAL = 500;
@@ -44,6 +45,7 @@ struct Receiver
 Receiver receivers[NUM_RECEIVERS];
 lv_disp_t *display;
 auto lv_last_tick = millis();
+Preferences preferences;
 
 // Function definitions
 void messageReceived(const uint8_t *mac, const uint8_t *data, int len);
@@ -52,13 +54,16 @@ void sendMessage(Receiver &receiver);
 void initESPNow();
 void updateBacklight();
 void action_switch_led(lv_event_t *e);
+void updateBatteryPercentage();
+void setLEDState();
+bool getLEDState(char preset);
 
 void initESPNow()
 {
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK)
   {
-    Serial.println("ESP-NOW Initialisierung fehlgeschlagen");
+    Serial.println("ESP-NOW initialisation failed");
     return;
   }
 
@@ -75,23 +80,23 @@ void initESPNow()
     snprintf(receivers[i].sentData.command, sizeof(receivers[i].sentData.command), "Hello Slave!");
     receivers[i].sentData.value = 0;
     receivers[i].sentData.measurement = 0.0f;
-    receivers[i].sentData.status = false;
+    receivers[i].sentData.status = getLEDState('1' + i);
 
     if (esp_now_add_peer(&receivers[i].peerInfo) != ESP_OK)
     {
-      Serial.printf("Peer %d hinzufügen fehlgeschlagen\n", i);
+      Serial.printf("Adding Peer %d failed\n", i);
     }
   }
 
-  // start esp with deactivated leds
   set_var_state_led1(receivers[0].sentData.status);
   set_var_state_led2(receivers[1].sentData.status);
   set_var_state_led3(receivers[2].sentData.status);
 
   esp_now_register_recv_cb(messageReceived);
-  Serial.println("ESP-NOW initialisiert");
+  Serial.println("ESP-NOW initialised");
 }
 
+// Callback-Funktion für empfangene Nachrichten
 void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
 {
   for (auto &receiver : receivers)
@@ -121,7 +126,7 @@ void sendMessage(Receiver &receiver)
 
   if (result != ESP_OK)
   {
-    Serial.printf("Fehler beim Senden an %02X:%02X:%02X:%02X:%02X:%02X\n",
+    Serial.printf("Error sending to %02X:%02X:%02X:%02X:%02X:%02X\n",
                   receiver.mac[0], receiver.mac[1], receiver.mac[2],
                   receiver.mac[3], receiver.mac[4], receiver.mac[5]);
   }
@@ -147,6 +152,7 @@ void action_switch_led(lv_event_t *e)
   default:
     break;
   }
+  setLEDState();
 }
 
 void updateBacklight()
@@ -162,6 +168,25 @@ void updateBatteryPercentage()
   set_var_battery_percentage3(receivers[2].receivedData.measurement);
 }
 
+void setLEDState()
+{
+  preferences.begin("framecontrol", false);
+  preferences.putBool("state_led1", !get_var_state_led1());
+  preferences.putBool("state_led2", !get_var_state_led2());
+  preferences.putBool("state_led3", !get_var_state_led3());
+  preferences.end();
+}
+
+bool getLEDState(char preset)
+{
+  preferences.begin("framecontrol", false);
+  char key[15];
+  sprintf(key, "state_led%c", preset);
+  bool value = preferences.getBool(key, false);
+  preferences.end();
+  return value;
+}
+
 void setup()
 {
 #ifdef ARDUINO_USB_CDC_ON_BOOT
@@ -169,15 +194,15 @@ void setup()
 #endif
 
   Serial.begin(115200);
-  smartdisplay_init();
 
+  smartdisplay_init();
   display = lv_disp_get_default();
   lv_disp_set_rotation(display, LV_DISPLAY_ROTATION_90);
 
   initESPNow();
   ui_init();
 
-  Serial.println("System bereit");
+  Serial.println("System ready");
 }
 
 void loop()
@@ -190,6 +215,7 @@ void loop()
     if (now - receiver.lastSend >= SEND_INTERVAL)
     {
       sendMessage(receiver);
+      updateBatteryPercentage();
       receiver.lastSend = now;
     }
   }
