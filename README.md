@@ -1,45 +1,44 @@
-# Bare minimum sketch for the Sunton aka Cheap Yellow Display (CYD) boards. ESP32_1732S019N/C, 2424S012N/C, 2432S024R/C/N, 2432S028R, 2432S032N/R/C, 3248S035R/C, 4827S043R/C, 4848S040C, 8048S050N/C and 8048S070N/C
+# FrameControl
 
-For [PlatformIO](https://platformio.org/)
+FrameControl is a project developed using PlatformIO. It is designed to manage and control frames in a specified environment.
 
-[![Platform IO CI](https://github.com/rzeldent/esp32-smartdisplay-demo/actions/workflows/main.yml/badge.svg)](https://github.com/rzeldent/esp32-smartdisplay-demo/actions/workflows/main.yml)
+## Features
 
-This is a demo application for the [esp32-smartdisplay](https://github.com/rzeldent/esp32-smartdisplay) library that is intended to be used in [PlatformIO](https://platformio.org/).
-See [https://github.com/rzeldent/esp32-smartdisplay](https://github.com/rzeldent/esp32-smartdisplay/) for more information about the driver library.
+- Frame management with ESP-Now
+- Real-time control
+- User-friendly interface
 
-> [!WARNING]
-> Do not forget to clone this repository with submodules: `git clone --recurse-submodules`!
-> This is required to also have the latest version of the [Sunton boards definitions](https://github.com/rzeldent/platformio-espressif32-sunton).
+## Installation
 
-Example with sound! (if WiFi credentials are provided and speaker attached)
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/yourusername/FrameControl.git
+   ```
+2. Open the project with PlatformIO.
 
-![Example](assets/PXL_20231130_225143662.jpg)
+## Usage
 
-## Version history
+1. Build the project:
+   ```sh
+   pio run
+   ```
+2. Upload the firmware to your device:
+   ```sh
+   pio upload
+   ```
+3. Monitor the serial output:
+   ```sh
+   pio device monitor
+   ```
 
-- August 2024
-  - LVGL 9.2
-  - New boards
-- July 2024
-  - LVGL 9.1
-  - Use release 2.0.10
-- June 2024
-  - Update SquareLine project to 1.4.1
-- July 2024
-  - LVGL 9.1
-  - Use release 2.0.10
-- June 2024
-  - Update SquareLine project to 1.4.1
-- March 2024
-  - Added rotate button
-  - Removed radio (and wifi dependencies)
-- December 2023
-  - Release 2.0.0
-  - Updated demo with sound
-- November 2023
-  - Use of new library
-  - Updated demo application with sound
-- March 2023
-  - Demo application created
-- October 2023
-  - Updated UI using [SquareLine Studio](https://squareline.io). This is a graphical UI design tool.
+## Contributing
+
+Contributions are welcome! Please fork the repository and submit a pull request.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+## Contact
+
+For any inquiries, please contact [w.stab@outlook.com](mailto:w.stab@outlook.com).
