@@ -52,9 +52,9 @@ void messageReceived(const uint8_t *mac, const uint8_t *data, int len);
 void updateBacklight();
 void sendMessage(Receiver &receiver);
 void initESPNow();
-void updateBacklight();
 void action_switch_led(lv_event_t *e);
 void updateBatteryPercentage();
+float calculateBatteryPercentage(float voltage);
 void setLEDState();
 bool getLEDState(char preset);
 
@@ -113,6 +113,7 @@ void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
                       receiver.receivedData.measurement,
                       receiver.receivedData.status ? "true" : "false");
       }
+      Serial.println(receiver.receivedData.measurement);
       break;
     }
   }
@@ -136,7 +137,6 @@ void action_switch_led(lv_event_t *e)
 {
   int userData = (int)lv_event_get_user_data(e);
   receivers[userData].sentData.status = !receivers[userData].sentData.status;
-  Serial.println("LED " + String(userData) + ": Is: " + receivers[userData].sentData.status);
 
   switch (userData)
   {
@@ -161,11 +161,20 @@ void updateBacklight()
   smartdisplay_lcd_set_backlight(isActive ? BACKLIGHT_ACTIVE : BACKLIGHT_INACTIVE);
 }
 
+// Calculates the 18650-Li-Ion-battery percentage of a based on the voltage
+float calculateBatteryPercentage(float voltage)
+{
+  // 4.2V = 100%
+  // 3.3V = 0%
+  voltage = voltage * 2; // voltage divider
+  return constrain(map(voltage, 3300, 4200, 0, 100), 0, 100);
+}
+
 void updateBatteryPercentage()
 {
-  set_var_battery_percentage1(receivers[0].receivedData.measurement);
-  set_var_battery_percentage2(receivers[1].receivedData.measurement);
-  set_var_battery_percentage3(receivers[2].receivedData.measurement);
+  set_var_battery_percentage1(calculateBatteryPercentage(receivers[0].receivedData.measurement));
+  set_var_battery_percentage2(calculateBatteryPercentage(receivers[1].receivedData.measurement));
+  set_var_battery_percentage3(calculateBatteryPercentage(receivers[2].receivedData.measurement));
 }
 
 void setLEDState()
