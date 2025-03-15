@@ -10,9 +10,11 @@
 
 // const confs
 constexpr uint8_t RECEIVER_MACS[][6] = {
+    {0xF0, 0xF5, 0xBD, 0x02, 0xEE, 0xB8}, // Receiver 0
     {0x1C, 0x69, 0x20, 0xCE, 0x68, 0x50}, // Receiver 1
     {0x40, 0x4C, 0xCA, 0x5D, 0xF1, 0x30}, // Receiver 2
-    {0xF0, 0xF5, 0xBD, 0x01, 0x96, 0xE0}  // Receiver 3
+    {0xF0, 0xF5, 0xBD, 0x01, 0x96, 0xE0}, // Receiver 3
+    {0xF0, 0xF5, 0xBD, 0x2C, 0x08, 0xF4}  // Receiver 4
 };
 constexpr size_t NUM_RECEIVERS = sizeof(RECEIVER_MACS) / sizeof(RECEIVER_MACS[0]);
 constexpr uint32_t SEND_INTERVAL = 500;
@@ -43,12 +45,12 @@ struct Receiver
 
 // global variables
 Receiver receivers[NUM_RECEIVERS];
-lv_disp_t *display;
+lv_disp_t *display; // Define display here
 auto lv_last_tick = millis();
 Preferences preferences;
 
 // Function definitions
-void messageReceived(const uint8_t *mac, const uint8_t *data, int len);
+void messageReceived(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int len);
 void updateBacklight();
 void sendMessage(Receiver &receiver);
 void initESPNow();
@@ -97,23 +99,23 @@ void initESPNow()
 }
 
 // Callback-Funktion für empfangene Nachrichten
-void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
+void IRAM_ATTR messageReceived(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int len)
 {
   for (auto &receiver : receivers)
   {
-    if (memcmp(mac, receiver.mac, 6) == 0)
+    if (memcmp(esp_now_info->src_addr, receiver.mac, 6) == 0)
     {
       if (len == sizeof(MessageData))
       {
         memcpy(&receiver.receivedData, data, len);
         Serial.printf("Daten von %02X:%02X:%02X:%02X:%02X:%02X: %s, %d, %.2f, %s\n",
-                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+                      esp_now_info->src_addr[0], esp_now_info->src_addr[1], esp_now_info->src_addr[2],
+                      esp_now_info->src_addr[3], esp_now_info->src_addr[4], esp_now_info->src_addr[5],
                       receiver.receivedData.command,
                       receiver.receivedData.value,
                       receiver.receivedData.measurement,
                       receiver.receivedData.status ? "true" : "false");
       }
-      Serial.println(receiver.receivedData.measurement);
       break;
     }
   }
