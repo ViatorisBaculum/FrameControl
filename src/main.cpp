@@ -12,12 +12,13 @@
 constexpr uint8_t RECEIVER_MACS[][6] = {
     {0xF0, 0xF5, 0xBD, 0x02, 0xEE, 0xB8}, // Receiver 0
     {0x1C, 0x69, 0x20, 0xCE, 0x68, 0x50}, // Receiver 1
+    {0xF0, 0xF5, 0xBD, 0x2C, 0x08, 0xF4}, // Receiver 4
     {0x40, 0x4C, 0xCA, 0x5D, 0xF1, 0x30}, // Receiver 2
-    {0xF0, 0xF5, 0xBD, 0x01, 0x96, 0xE0}, // Receiver 3
-    {0xF0, 0xF5, 0xBD, 0x2C, 0x08, 0xF4}  // Receiver 4
+    {0xF0, 0xF5, 0xBD, 0x01, 0x96, 0xE0}  // Receiver 3
 };
 constexpr size_t NUM_RECEIVERS = sizeof(RECEIVER_MACS) / sizeof(RECEIVER_MACS[0]);
-constexpr uint32_t SEND_INTERVAL = 500;
+constexpr uint32_t SEND_INTERVAL = 100;
+constexpr uint32_t LED_UPDATE_INTERVAL = 500;
 constexpr uint32_t INACTIVITY_TIMEOUT = 600000;
 constexpr uint8_t BACKLIGHT_ACTIVE = 50;
 constexpr uint8_t BACKLIGHT_INACTIVE = 0;
@@ -48,9 +49,10 @@ Receiver receivers[NUM_RECEIVERS];
 lv_disp_t *display; // Define display here
 auto lv_last_tick = millis();
 Preferences preferences;
+uint8_t batteryPercentage = 0;
 
 // Function definitions
-void messageReceived(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int len);
+void messageReceived(const uint8_t *mac, const uint8_t *data, int len);
 void updateBacklight();
 void sendMessage(Receiver &receiver);
 void initESPNow();
@@ -99,23 +101,23 @@ void initESPNow()
 }
 
 // Callback-Funktion für empfangene Nachrichten
-void IRAM_ATTR messageReceived(const esp_now_recv_info_t *esp_now_info, const uint8_t *data, int len)
+void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
 {
   for (auto &receiver : receivers)
   {
-    if (memcmp(esp_now_info->src_addr, receiver.mac, 6) == 0)
+    if (memcmp(mac, receiver.mac, 6) == 0)
     {
       if (len == sizeof(MessageData))
       {
         memcpy(&receiver.receivedData, data, len);
         Serial.printf("Daten von %02X:%02X:%02X:%02X:%02X:%02X: %s, %d, %.2f, %s\n",
-                      esp_now_info->src_addr[0], esp_now_info->src_addr[1], esp_now_info->src_addr[2],
-                      esp_now_info->src_addr[3], esp_now_info->src_addr[4], esp_now_info->src_addr[5],
+                      mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
                       receiver.receivedData.command,
                       receiver.receivedData.value,
                       receiver.receivedData.measurement,
                       receiver.receivedData.status ? "true" : "false");
       }
+      Serial.println(receiver.receivedData.measurement);
       break;
     }
   }
@@ -168,15 +170,49 @@ float calculateBatteryPercentage(float voltage)
 {
   // 4.2V = 100%
   // 3.3V = 0%
+  Serial.println(voltage);
   voltage = voltage * 2; // voltage divider
   return constrain(map(voltage, 3300, 4200, 0, 100), 0, 100);
 }
 
 void updateBatteryPercentage()
 {
-  set_var_battery_percentage1(calculateBatteryPercentage(receivers[0].receivedData.measurement));
-  set_var_battery_percentage2(calculateBatteryPercentage(receivers[1].receivedData.measurement));
-  set_var_battery_percentage3(calculateBatteryPercentage(receivers[2].receivedData.measurement));
+  bool incrementBatteryPercentage = false;
+
+  if (receivers[0].receivedData.status == receivers[0].sentData.status)
+  {
+    set_var_battery_percentage1(calculateBatteryPercentage(receivers[0].receivedData.measurement));
+  }
+  else
+  {
+    set_var_battery_percentage1(batteryPercentage);
+    incrementBatteryPercentage = true;
+  }
+
+  if (receivers[1].receivedData.status == receivers[1].sentData.status)
+  {
+    set_var_battery_percentage2(calculateBatteryPercentage(receivers[1].receivedData.measurement));
+  }
+  else
+  {
+    set_var_battery_percentage2(batteryPercentage);
+    incrementBatteryPercentage = true;
+  }
+
+  if (receivers[2].receivedData.status == receivers[2].sentData.status)
+  {
+    set_var_battery_percentage3(calculateBatteryPercentage(receivers[2].receivedData.measurement));
+  }
+  else
+  {
+    set_var_battery_percentage3(batteryPercentage);
+    incrementBatteryPercentage = true;
+  }
+
+  if (incrementBatteryPercentage)
+  {
+    batteryPercentage = batteryPercentage > 100 ? 0 : (batteryPercentage + 1);
+  }
 }
 
 void setLEDState()
@@ -242,7 +278,7 @@ void loop()
 
 #ifdef BOARD_HAS_RGB_LED
   static uint32_t lastLedUpdate = 0;
-  if (now - lastLedUpdate >= 500)
+  if (now - lastLedUpdate >= LED_UPDATE_INTERVAL)
   {
     static uint8_t ledState = 0;
     smartdisplay_led_set_rgb(ledState & 0x01, ledState & 0x02, ledState & 0x04);
