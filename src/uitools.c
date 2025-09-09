@@ -87,62 +87,69 @@ void set_var_operating_hours3(uint32_t value) {
 // UI event: refresh brightness from slider and +/- buttons
 void action_change_brightness(lv_event_t *e)
 {
-    int userData = (int)lv_event_get_user_data(e);
-    int channel = 0; // 0, 1, 2 for channels 1, 2, 3
+    lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
+
+    int channel = -1; // 0..2
+    enum Kind { Kind_Slider, Kind_Down, Kind_Up } kind;
+
+    if (target == objects.slider_brightness_1) {
+        channel = 0; kind = Kind_Slider;
+    } else if (target == objects.slider_brightness_2) {
+        channel = 1; kind = Kind_Slider;
+    } else if (target == objects.slider_brightness_3) {
+        channel = 2; kind = Kind_Slider;
+    } else if (target == objects.button_brightness_down_1) {
+        channel = 0; kind = Kind_Down;
+    } else if (target == objects.button_brightness_down_2) {
+        channel = 1; kind = Kind_Down;
+    } else if (target == objects.button_brightness_down_3) {
+        channel = 2; kind = Kind_Down;
+    } else if (target == objects.button_brightness_up_1) {
+        channel = 0; kind = Kind_Up;
+    } else if (target == objects.button_brightness_up_2) {
+        channel = 1; kind = Kind_Up;
+    } else if (target == objects.button_brightness_up_3) {
+        channel = 2; kind = Kind_Up;
+    } else {
+        return;
+    }
 
     lv_obj_t *slider = NULL;
     lv_obj_t *label = NULL;
-
-    switch (userData) {
-    case 10:
-    case 11:
-    case 12:
+    switch (channel) {
+    case 0:
         slider = objects.slider_brightness_1;
         label  = objects.label_brightness_1;
-        channel = 0;
         break;
-    case 20:
-    case 21:
-    case 22:
+    case 1:
         slider = objects.slider_brightness_2;
         label  = objects.label_brightness_2;
-        channel = 1;
         break;
-    case 30:
-    case 31:
-    case 32:
+    case 2:
         slider = objects.slider_brightness_3;
         label  = objects.label_brightness_3;
-        channel = 2;
         break;
     default:
         return;
     }
 
     int value = lv_slider_get_value(slider);
-    
-    if (userData == 10 || userData == 20 || userData == 30) {
+    // Round to nearest 5 for consistent step increments
+    value = ((value + 2) / 5) * 5;
+    if (kind == Kind_Down) {
         value -= 5;
-        value = ((value + 2) / 5) * 5; // Round to nearest 5 for consistent step increments
-        if (value < 0) value = 0;
-        if (value > 100) value = 100;
-        lv_slider_set_value(slider, value, LV_ANIM_OFF);
-    } else if (userData == 11 || userData == 21 || userData == 31) {
+    } else if (kind == Kind_Up) {
         value += 5;
-        value = ((value + 2) / 5) * 5; // Round to nearest 5 for consistent step increments
-        if (value < 0) value = 0;
-        if (value > 100) value = 100;
-        lv_slider_set_value(slider, value, LV_ANIM_OFF);
-    } else if (userData == 12 || userData == 22 || userData == 32) {
-        // Direct slider change; no adjustment needed
+    } else { // slider moved
+        value = lv_slider_get_value(target);
     }
 
-    // if (value < 0) value = 0;
-    // if (value > 100) value = 100;
+    if (value < 0) value = 0;
+    if (value > 100) value = 100;
 
-    // if (target != slider) {
-    //     lv_slider_set_value(slider, value, LV_ANIM_OFF);
-    // }
+    if (target != slider) {
+        lv_slider_set_value(slider, value, LV_ANIM_OFF);
+    }
 
     char buf[8];
     snprintf(buf, sizeof(buf), "%d%%", value);
@@ -153,4 +160,34 @@ void action_change_brightness(lv_event_t *e)
     case 1: set_var_brightness_led2(value); break;
     case 2: set_var_brightness_led3(value); break;
     }
+}
+
+// Persist helper from main.cpp (C-linkage wrapper)
+extern void setLEDState_c(void);
+
+// UI event: mirror button state to variable and persist
+void action_switch_led(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    if (code != LV_EVENT_VALUE_CHANGED && code != LV_EVENT_RELEASED) return;
+
+    int userData = (int)lv_event_get_user_data(e); // 0,1,2
+    lv_obj_t *ta = lv_event_get_target(e);
+    bool value = lv_obj_has_state(ta, LV_STATE_CHECKED);
+
+    switch (userData)
+    {
+    case 0:
+        set_var_state_led1(value);
+        break;
+    case 1:
+        set_var_state_led2(value);
+        break;
+    case 2:
+        set_var_state_led3(value);
+        break;
+    default:
+        return;
+    }
+    setLEDState_c();
 }

@@ -174,7 +174,7 @@ void create_screen_main() {
                             objects.button_power_1 = obj;
                             lv_obj_set_pos(obj, 25, 25);
                             lv_obj_set_size(obj, 50, 50);
-                            lv_obj_add_event_cb(obj, action_switch_led, LV_EVENT_RELEASED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_switch_led, LV_EVENT_VALUE_CHANGED, (void *)0);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_button_power_1, LV_EVENT_ALL, 0);
                             lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
                             add_style_button_style(obj);
@@ -232,7 +232,7 @@ void create_screen_main() {
                             objects.button_power_2 = obj;
                             lv_obj_set_pos(obj, 122, 107);
                             lv_obj_set_size(obj, 50, 50);
-                            lv_obj_add_event_cb(obj, action_switch_led, LV_EVENT_RELEASED, (void *)1);
+                            lv_obj_add_event_cb(obj, action_switch_led, LV_EVENT_VALUE_CHANGED, (void *)1);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_button_power_2, LV_EVENT_ALL, 0);
                             lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
                             add_style_button_style(obj);
@@ -290,7 +290,7 @@ void create_screen_main() {
                             objects.button_power_3 = obj;
                             lv_obj_set_pos(obj, 219, 25);
                             lv_obj_set_size(obj, 50, 50);
-                            lv_obj_add_event_cb(obj, action_switch_led, LV_EVENT_RELEASED, (void *)2);
+                            lv_obj_add_event_cb(obj, action_switch_led, LV_EVENT_VALUE_CHANGED, (void *)2);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_button_power_3, LV_EVENT_ALL, 0);
                             lv_obj_add_flag(obj, LV_OBJ_FLAG_CHECKABLE);
                             add_style_button_style(obj);
