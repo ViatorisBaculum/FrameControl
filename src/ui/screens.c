@@ -30,7 +30,7 @@ static void event_handler_cb_main_brightness_percentage_1(lv_event_t *e) {
         lv_obj_t *ta = lv_event_get_target(e);
         if (tick_value_change_obj != ta) {
             int32_t value = lv_arc_get_value(ta);
-            set_var_battery_percentage1(value);
+            set_var_brightness_led1(value);
         }
     }
 }
@@ -52,7 +52,7 @@ static void event_handler_cb_main_battery_percentage_2(lv_event_t *e) {
         lv_obj_t *ta = lv_event_get_target(e);
         if (tick_value_change_obj != ta) {
             int32_t value = lv_arc_get_value(ta);
-            set_var_battery_percentage1(value);
+            set_var_battery_percentage2(value);
         }
     }
 }
@@ -63,7 +63,7 @@ static void event_handler_cb_main_brightness_percentage_2(lv_event_t *e) {
         lv_obj_t *ta = lv_event_get_target(e);
         if (tick_value_change_obj != ta) {
             int32_t value = lv_arc_get_value(ta);
-            set_var_battery_percentage1(value);
+            set_var_brightness_led2(value);
         }
     }
 }
@@ -85,7 +85,7 @@ static void event_handler_cb_main_battery_percentage_3(lv_event_t *e) {
         lv_obj_t *ta = lv_event_get_target(e);
         if (tick_value_change_obj != ta) {
             int32_t value = lv_arc_get_value(ta);
-            set_var_battery_percentage1(value);
+            set_var_battery_percentage3(value);
         }
     }
 }
@@ -96,7 +96,7 @@ static void event_handler_cb_main_brightness_percentage_3(lv_event_t *e) {
         lv_obj_t *ta = lv_event_get_target(e);
         if (tick_value_change_obj != ta) {
             int32_t value = lv_arc_get_value(ta);
-            set_var_battery_percentage1(value);
+            set_var_brightness_led3(value);
         }
     }
 }
@@ -144,7 +144,6 @@ void create_screen_main() {
                             lv_obj_set_size(obj, 100, 100);
                             lv_arc_set_bg_start_angle(obj, 100);
                             lv_arc_set_bg_end_angle(obj, 260);
-                            lv_arc_set_mode(obj, LV_ARC_MODE_SYMMETRICAL);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_battery_percentage_1, LV_EVENT_ALL, 0);
                             lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                             add_style_battery_arc(obj);
@@ -161,7 +160,6 @@ void create_screen_main() {
                             lv_obj_set_size(obj, 100, 100);
                             lv_arc_set_bg_start_angle(obj, 280);
                             lv_arc_set_bg_end_angle(obj, 80);
-                            lv_arc_set_mode(obj, LV_ARC_MODE_SYMMETRICAL);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_brightness_percentage_1, LV_EVENT_ALL, 0);
                             lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                             add_style_battery_arc(obj);
@@ -204,7 +202,6 @@ void create_screen_main() {
                             lv_obj_set_size(obj, 100, 100);
                             lv_arc_set_bg_start_angle(obj, 100);
                             lv_arc_set_bg_end_angle(obj, 260);
-                            lv_arc_set_mode(obj, LV_ARC_MODE_SYMMETRICAL);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_battery_percentage_2, LV_EVENT_ALL, 0);
                             lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                             add_style_battery_arc(obj);
@@ -221,7 +218,6 @@ void create_screen_main() {
                             lv_obj_set_size(obj, 100, 100);
                             lv_arc_set_bg_start_angle(obj, 280);
                             lv_arc_set_bg_end_angle(obj, 80);
-                            lv_arc_set_mode(obj, LV_ARC_MODE_SYMMETRICAL);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_brightness_percentage_2, LV_EVENT_ALL, 0);
                             lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                             add_style_battery_arc(obj);
@@ -264,7 +260,6 @@ void create_screen_main() {
                             lv_obj_set_size(obj, 100, 100);
                             lv_arc_set_bg_start_angle(obj, 100);
                             lv_arc_set_bg_end_angle(obj, 260);
-                            lv_arc_set_mode(obj, LV_ARC_MODE_SYMMETRICAL);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_battery_percentage_3, LV_EVENT_ALL, 0);
                             lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                             add_style_battery_arc(obj);
@@ -281,7 +276,6 @@ void create_screen_main() {
                             lv_obj_set_size(obj, 100, 100);
                             lv_arc_set_bg_start_angle(obj, 280);
                             lv_arc_set_bg_end_angle(obj, 80);
-                            lv_arc_set_mode(obj, LV_ARC_MODE_SYMMETRICAL);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_brightness_percentage_3, LV_EVENT_ALL, 0);
                             lv_obj_clear_flag(obj, LV_OBJ_FLAG_CLICKABLE);
                             add_style_battery_arc(obj);
@@ -398,7 +392,7 @@ void create_screen_main() {
                             objects.button_brightness_down_1 = obj;
                             lv_obj_set_pos(obj, 66, 21);
                             lv_obj_set_size(obj, 22, 12);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_RELEASED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_PRESSED, (void *)10);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                             {
@@ -432,7 +426,7 @@ void create_screen_main() {
                             objects.button_brightness_up_1 = obj;
                             lv_obj_set_pos(obj, 135, 21);
                             lv_obj_set_size(obj, 22, 12);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_RELEASED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_PRESSED, (void *)11);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                             {
@@ -457,7 +451,7 @@ void create_screen_main() {
                             lv_obj_set_pos(obj, 171, 21);
                             lv_obj_set_size(obj, 112, 12);
                             lv_slider_set_value(obj, 100, LV_ANIM_OFF);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_VALUE_CHANGED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_VALUE_CHANGED, (void *)12);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_INDICATOR | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -550,7 +544,7 @@ void create_screen_main() {
                             objects.button_brightness_down_2 = obj;
                             lv_obj_set_pos(obj, 66, 78);
                             lv_obj_set_size(obj, 22, 12);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_RELEASED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_PRESSED, (void *)20);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                             {
@@ -584,7 +578,7 @@ void create_screen_main() {
                             objects.button_brightness_up_2 = obj;
                             lv_obj_set_pos(obj, 135, 78);
                             lv_obj_set_size(obj, 22, 12);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_RELEASED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_PRESSED, (void *)21);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                             {
@@ -609,7 +603,7 @@ void create_screen_main() {
                             lv_obj_set_pos(obj, 171, 78);
                             lv_obj_set_size(obj, 112, 12);
                             lv_slider_set_value(obj, 75, LV_ANIM_OFF);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_VALUE_CHANGED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_VALUE_CHANGED, (void *)22);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_INDICATOR | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -702,7 +696,7 @@ void create_screen_main() {
                             objects.button_brightness_down_3 = obj;
                             lv_obj_set_pos(obj, 66, 135);
                             lv_obj_set_size(obj, 22, 12);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_RELEASED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_PRESSED, (void *)30);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                             {
@@ -736,7 +730,7 @@ void create_screen_main() {
                             objects.button_brightness_up_3 = obj;
                             lv_obj_set_pos(obj, 135, 135);
                             lv_obj_set_size(obj, 22, 12);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_RELEASED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_PRESSED, (void *)31);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_MAIN | LV_STATE_DEFAULT);
                             lv_obj_set_style_shadow_width(obj, 0, LV_PART_MAIN | LV_STATE_DEFAULT);
                             {
@@ -761,7 +755,7 @@ void create_screen_main() {
                             lv_obj_set_pos(obj, 171, 135);
                             lv_obj_set_size(obj, 112, 12);
                             lv_slider_set_value(obj, 85, LV_ANIM_OFF);
-                            lv_obj_add_event_cb(obj, action_refresh_brightness, LV_EVENT_VALUE_CHANGED, (void *)0);
+                            lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_VALUE_CHANGED, (void *)32);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_INDICATOR | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -834,7 +828,7 @@ void tick_screen_main() {
         }
     }
     {
-        int32_t new_val = get_var_battery_percentage1();
+        int32_t new_val = get_var_brightness_led1();
         int32_t cur_val = lv_arc_get_value(objects.brightness_percentage_1);
         if (new_val != cur_val) {
             tick_value_change_obj = objects.brightness_percentage_1;
@@ -853,7 +847,7 @@ void tick_screen_main() {
         }
     }
     {
-        int32_t new_val = get_var_battery_percentage1();
+        int32_t new_val = get_var_battery_percentage2();
         int32_t cur_val = lv_arc_get_value(objects.battery_percentage_2);
         if (new_val != cur_val) {
             tick_value_change_obj = objects.battery_percentage_2;
@@ -862,7 +856,7 @@ void tick_screen_main() {
         }
     }
     {
-        int32_t new_val = get_var_battery_percentage1();
+        int32_t new_val = get_var_brightness_led2();
         int32_t cur_val = lv_arc_get_value(objects.brightness_percentage_2);
         if (new_val != cur_val) {
             tick_value_change_obj = objects.brightness_percentage_2;
@@ -881,7 +875,7 @@ void tick_screen_main() {
         }
     }
     {
-        int32_t new_val = get_var_battery_percentage1();
+        int32_t new_val = get_var_battery_percentage3();
         int32_t cur_val = lv_arc_get_value(objects.battery_percentage_3);
         if (new_val != cur_val) {
             tick_value_change_obj = objects.battery_percentage_3;
@@ -890,7 +884,7 @@ void tick_screen_main() {
         }
     }
     {
-        int32_t new_val = get_var_battery_percentage1();
+        int32_t new_val = get_var_brightness_led3();
         int32_t cur_val = lv_arc_get_value(objects.brightness_percentage_3);
         if (new_val != cur_val) {
             tick_value_change_obj = objects.brightness_percentage_3;

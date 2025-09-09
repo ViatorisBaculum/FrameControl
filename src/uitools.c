@@ -22,13 +22,31 @@ static bool state_led3;
 
 // Implementations for ui/vars.h (battery + LED states)
 float get_var_battery_percentage1() { return battery_percentage1; }
-void set_var_battery_percentage1(float value) { battery_percentage1 = value; }
+void set_var_battery_percentage1(float value) { 
+    battery_percentage1 = value; 
+    if (objects.label_battery_percentage_1 != NULL) {
+        int pct = (int)(battery_percentage1 + 0.5f);
+        lv_label_set_text_fmt(objects.label_battery_percentage_1, "%d%%", pct);
+    }
+}
 
 float get_var_battery_percentage2() { return battery_percentage2; }
-void set_var_battery_percentage2(float value) { battery_percentage2 = value; }
+void set_var_battery_percentage2(float value) { 
+    battery_percentage2 = value; 
+    if (objects.label_battery_percentage_2 != NULL) {
+        int pct = (int)(battery_percentage2 + 0.5f);
+        lv_label_set_text_fmt(objects.label_battery_percentage_2, "%d%%", pct);
+    }
+}
 
 float get_var_battery_percentage3() { return battery_percentage3; }
-void set_var_battery_percentage3(float value) { battery_percentage3 = value; }
+void set_var_battery_percentage3(float value) { 
+    battery_percentage3 = value; 
+    if (objects.label_battery_percentage_3 != NULL) {
+        int pct = (int)(battery_percentage3 + 0.5f);
+        lv_label_set_text_fmt(objects.label_battery_percentage_3, "%d%%", pct);
+    }
+}
 
 bool get_var_state_led1() { return state_led1; }
 void set_var_state_led1(bool value) { state_led1 = value; }
@@ -48,72 +66,83 @@ float get_var_brightness_led1() { return brightness_led1; }
 float get_var_brightness_led2() { return brightness_led2; }
 float get_var_brightness_led3() { return brightness_led3; }
 
-// UI event: refresh brightness from slider and +/- buttons
-void action_refresh_brightness(lv_event_t *e)
-{
-    lv_obj_t *target = (lv_obj_t *)lv_event_get_target(e);
-
-    int channel = -1; // 0..2
-    enum Kind { Kind_Slider, Kind_Down, Kind_Up } kind;
-
-    if (target == objects.slider_brightness_1) {
-        channel = 0; kind = Kind_Slider;
-    } else if (target == objects.slider_brightness_2) {
-        channel = 1; kind = Kind_Slider;
-    } else if (target == objects.slider_brightness_3) {
-        channel = 2; kind = Kind_Slider;
-    } else if (target == objects.button_brightness_down_1) {
-        channel = 0; kind = Kind_Down;
-    } else if (target == objects.button_brightness_down_2) {
-        channel = 1; kind = Kind_Down;
-    } else if (target == objects.button_brightness_down_3) {
-        channel = 2; kind = Kind_Down;
-    } else if (target == objects.button_brightness_up_1) {
-        channel = 0; kind = Kind_Up;
-    } else if (target == objects.button_brightness_up_2) {
-        channel = 1; kind = Kind_Up;
-    } else if (target == objects.button_brightness_up_3) {
-        channel = 2; kind = Kind_Up;
-    } else {
-        return;
+void set_var_operating_hours1(uint32_t value) {
+    if (objects.label_operating_hours_1 != NULL) {
+        lv_label_set_text_fmt(objects.label_operating_hours_1, "%u h", value);
     }
+}
+
+void set_var_operating_hours2(uint32_t value) {
+    if (objects.label_operating_hours_2 != NULL) {
+        lv_label_set_text_fmt(objects.label_operating_hours_2, "%u h", value);
+    }
+}
+
+void set_var_operating_hours3(uint32_t value) {
+    if (objects.label_operating_hours_3 != NULL) {
+        lv_label_set_text_fmt(objects.label_operating_hours_3, "%u h", value);
+    }
+}
+
+// UI event: refresh brightness from slider and +/- buttons
+void action_change_brightness(lv_event_t *e)
+{
+    int userData = (int)lv_event_get_user_data(e);
+    int channel = 0; // 0, 1, 2 for channels 1, 2, 3
 
     lv_obj_t *slider = NULL;
     lv_obj_t *label = NULL;
-    switch (channel) {
-    case 0:
+
+    switch (userData) {
+    case 10:
+    case 11:
+    case 12:
         slider = objects.slider_brightness_1;
         label  = objects.label_brightness_1;
+        channel = 0;
         break;
-    case 1:
+    case 20:
+    case 21:
+    case 22:
         slider = objects.slider_brightness_2;
         label  = objects.label_brightness_2;
+        channel = 1;
         break;
-    case 2:
+    case 30:
+    case 31:
+    case 32:
         slider = objects.slider_brightness_3;
         label  = objects.label_brightness_3;
+        channel = 2;
         break;
     default:
         return;
     }
 
     int value = lv_slider_get_value(slider);
-    // Round to nearest 5 for consistent step increments
-    value = ((value + 2) / 5) * 5;
-    if (kind == Kind_Down) {
+    
+    if (userData == 10 || userData == 20 || userData == 30) {
         value -= 5;
-    } else if (kind == Kind_Up) {
-        value += 5;
-    } else { // slider moved
-        value = lv_slider_get_value(target);
-    }
-
-    if (value < 0) value = 0;
-    if (value > 100) value = 100;
-
-    if (target != slider) {
+        value = ((value + 2) / 5) * 5; // Round to nearest 5 for consistent step increments
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
         lv_slider_set_value(slider, value, LV_ANIM_OFF);
+    } else if (userData == 11 || userData == 21 || userData == 31) {
+        value += 5;
+        value = ((value + 2) / 5) * 5; // Round to nearest 5 for consistent step increments
+        if (value < 0) value = 0;
+        if (value > 100) value = 100;
+        lv_slider_set_value(slider, value, LV_ANIM_OFF);
+    } else if (userData == 12 || userData == 22 || userData == 32) {
+        // Direct slider change; no adjustment needed
     }
+
+    // if (value < 0) value = 0;
+    // if (value > 100) value = 100;
+
+    // if (target != slider) {
+    //     lv_slider_set_value(slider, value, LV_ANIM_OFF);
+    // }
 
     char buf[8];
     snprintf(buf, sizeof(buf), "%d%%", value);

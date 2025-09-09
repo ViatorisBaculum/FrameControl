@@ -97,7 +97,7 @@ void initESPNow()
       receivers[i].sentData.brightness = (int)get_var_brightness_led3();
       break;
     default:
-      receivers[i].sentData.brightness = 0;
+      // receivers[i].sentData.brightness = 0;
       break;
     }
     receivers[i].sentData.measurement = 0.0f;
@@ -172,6 +172,18 @@ void sendMessage(Receiver &receiver)
       receiver.sentData.brightness = (int)get_var_brightness_led3();
       break;
     }
+
+    // Persist brightness to NVS only if changed to survive reboots
+    static uint32_t lastSavedBrightness[3] = {0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu};
+    if (lastSavedBrightness[idx] != receiver.sentData.brightness)
+    {
+      preferences.begin("framecontrol", false);
+      char key[16];
+      snprintf(key, sizeof(key), "brightness_led%u", (unsigned)(idx + 1));
+      preferences.putUInt(key, receiver.sentData.brightness);
+      preferences.end();
+      lastSavedBrightness[idx] = receiver.sentData.brightness;
+    }
   }
   esp_err_t result = esp_now_send(receiver.mac,
                                   reinterpret_cast<uint8_t *>(&receiver.sentData),
@@ -213,14 +225,31 @@ void updateBacklight()
   smartdisplay_lcd_set_backlight(isActive ? BACKLIGHT_ACTIVE : BACKLIGHT_INACTIVE);
 }
 
-// Calculates the 18650-Li-Ion-battery percentage of a based on the voltage
-float calculateBatteryPercentage(float voltage)
+// Calculates 18650 Li-Ion battery percentage from half-voltage reading (mV)
+float calculateBatteryPercentage(float halfVoltageMv)
 {
-  // 4.2V = 100%
-  // 3.3V = 0%
-  // Serial.println(voltage);
-  voltage = voltage * 2; // voltage divider
-  return constrain(map(voltage, 3300, 4200, 0, 100), 0, 100);
+  // Slave reports half voltage in mV (e.g., 1890 => 3.780V)
+  float mv = halfVoltageMv * 2.0f;
+
+  // Clamp to reasonable bounds
+  if (mv <= 3300.0f)
+    return 0.0f;
+  if (mv >= 4200.0f)
+    return 100.0f;
+
+  // Piecewise-linear approximation of 18650 OCV curve
+  const float pts_mv[] = {3300, 3400, 3500, 3600, 3700, 3800, 3900, 4000, 4100, 4200};
+  const float pts_pc[] = {   0,   10,   20,   30,   45,   60,   72,   84,   92,  100};
+
+  for (int i = 0; i < 9; ++i)
+  {
+    if (mv <= pts_mv[i + 1])
+    {
+      float t = (mv - pts_mv[i]) / (pts_mv[i + 1] - pts_mv[i]);
+      return pts_pc[i] + t * (pts_pc[i + 1] - pts_pc[i]);
+    }
+  }
+  return 0.0f; // fallback
 }
 
 void updateBatteryPercentage()
@@ -293,6 +322,16 @@ void setup()
   smartdisplay_init();
   display = lv_disp_get_default();
   lv_disp_set_rotation(display, LV_DISPLAY_ROTATION_90);
+
+  // Restore last saved brightness levels before initializing ESP-NOW
+  preferences.begin("framecontrol", true);
+  uint32_t b1 = preferences.getUInt("brightness_led1", 50);
+  uint32_t b2 = preferences.getUInt("brightness_led2", 50);
+  uint32_t b3 = preferences.getUInt("brightness_led3", 50);
+  preferences.end();
+  set_var_brightness_led1((float)b1);
+  set_var_brightness_led2((float)b2);
+  set_var_brightness_led3((float)b3);
 
   initESPNow();
   ui_init();
