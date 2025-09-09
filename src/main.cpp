@@ -28,9 +28,11 @@ constexpr uint8_t BACKLIGHT_INACTIVE = 0;
 struct MessageData
 {
   char command[32];
-  int value;
+  uint32_t brightness;
   float measurement;
   bool status;
+  uint32_t operatingHours;
+  uint32_t lastChargedDate;
 };
 #pragma pack(pop)
 
@@ -82,9 +84,26 @@ void initESPNow()
 
     // SentData initialisieren
     snprintf(receivers[i].sentData.command, sizeof(receivers[i].sentData.command), "Hello Slave!");
-    receivers[i].sentData.value = 0;
+    // Initialize brightness from UI vars per channel
+    switch (i)
+    {
+    case 0:
+      receivers[i].sentData.brightness = (int)get_var_brightness_led1();
+      break;
+    case 1:
+      receivers[i].sentData.brightness = (int)get_var_brightness_led2();
+      break;
+    case 2:
+      receivers[i].sentData.brightness = (int)get_var_brightness_led3();
+      break;
+    default:
+      receivers[i].sentData.brightness = 0;
+      break;
+    }
     receivers[i].sentData.measurement = 0.0f;
     receivers[i].sentData.status = getLEDState('1' + i);
+    receivers[i].sentData.operatingHours = 0;
+    receivers[i].sentData.lastChargedDate = 0;
 
     if (esp_now_add_peer(&receivers[i].peerInfo) != ESP_OK)
     {
@@ -110,11 +129,15 @@ void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
       if (len == sizeof(MessageData))
       {
         memcpy(&receiver.receivedData, data, len);
-        Serial.printf("Daten von %02X:%02X:%02X:%02X:%02X:%02X: %s, %d, %.2f, %s\n",
+        // Ensure proper parsing: enforce string termination and log all fields
+        receiver.receivedData.command[sizeof(receiver.receivedData.command) - 1] = '\0';
+        Serial.printf("Data from %02X:%02X:%02X:%02X:%02X:%02X: %s, brightness: %u, voltage: %.2f, hours: %u, date: %u, state: %s\n",
                       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
                       receiver.receivedData.command,
-                      receiver.receivedData.value,
+                      static_cast<unsigned>(receiver.receivedData.brightness),
                       receiver.receivedData.measurement,
+                      static_cast<unsigned>(receiver.receivedData.operatingHours),
+                      static_cast<unsigned>(receiver.receivedData.lastChargedDate),
                       receiver.receivedData.status ? "true" : "false");
       }
       Serial.println(receiver.receivedData.measurement);
@@ -125,6 +148,31 @@ void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
 
 void sendMessage(Receiver &receiver)
 {
+  // Update brightness from UI variables before sending (map receiver to channel)
+  size_t idx = NUM_RECEIVERS; // invalid by default
+  for (size_t i = 0; i < NUM_RECEIVERS; ++i)
+  {
+    if (&receivers[i] == &receiver)
+    {
+      idx = i;
+      break;
+    }
+  }
+  if (idx < 3)
+  {
+    switch (idx)
+    {
+    case 0:
+      receiver.sentData.brightness = (int)get_var_brightness_led1();
+      break;
+    case 1:
+      receiver.sentData.brightness = (int)get_var_brightness_led2();
+      break;
+    case 2:
+      receiver.sentData.brightness = (int)get_var_brightness_led3();
+      break;
+    }
+  }
   esp_err_t result = esp_now_send(receiver.mac,
                                   reinterpret_cast<uint8_t *>(&receiver.sentData),
                                   sizeof(MessageData));
@@ -170,7 +218,7 @@ float calculateBatteryPercentage(float voltage)
 {
   // 4.2V = 100%
   // 3.3V = 0%
-  Serial.println(voltage);
+  // Serial.println(voltage);
   voltage = voltage * 2; // voltage divider
   return constrain(map(voltage, 3300, 4200, 0, 100), 0, 100);
 }
@@ -218,9 +266,9 @@ void updateBatteryPercentage()
 void setLEDState()
 {
   preferences.begin("framecontrol", false);
-  preferences.putBool("state_led1", !get_var_state_led1());
-  preferences.putBool("state_led2", !get_var_state_led2());
-  preferences.putBool("state_led3", !get_var_state_led3());
+  preferences.putBool("state_led1", get_var_state_led1());
+  preferences.putBool("state_led2", get_var_state_led2());
+  preferences.putBool("state_led3", get_var_state_led3());
   preferences.end();
 }
 
