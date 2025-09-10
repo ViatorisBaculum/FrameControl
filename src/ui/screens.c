@@ -134,6 +134,26 @@ void create_screen_main() {
                     // tab_home
                     lv_obj_t *obj = lv_tabview_add_tab(parent_obj, "Start");
                     objects.tab_home = obj;
+                    // Set tab button background and text color
+                    {
+                        lv_obj_t *tv = parent_obj; // tabview object
+                        lv_obj_t *tab_bar = lv_tabview_get_tab_bar(tv);
+                        // Style tab bar background
+                        lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+                        lv_obj_set_style_bg_opa(tab_bar, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+                        // Style tab buttons (items) default + checked
+                        lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0xff000000), LV_PART_ITEMS | LV_STATE_DEFAULT);
+                        lv_obj_set_style_bg_opa(tab_bar, LV_OPA_COVER, LV_PART_ITEMS | LV_STATE_DEFAULT);
+                        lv_obj_set_style_text_color(tab_bar, lv_color_hex(0xffffffff), LV_PART_ITEMS | LV_STATE_DEFAULT);
+                        lv_obj_set_style_text_font(tab_bar, &lv_font_montserrat_14, LV_PART_ITEMS | LV_STATE_DEFAULT);
+                        lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0xff000000), LV_PART_ITEMS | LV_STATE_CHECKED);
+                        lv_obj_set_style_bg_opa(tab_bar, LV_OPA_COVER, LV_PART_ITEMS | LV_STATE_CHECKED);
+                        lv_obj_set_style_text_color(tab_bar, lv_color_hex(0xffffffff), LV_PART_ITEMS | LV_STATE_CHECKED);
+                        // Optional: remove borders that can appear white
+                        lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_DEFAULT);
+                        lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_CHECKED);
+                    }
+
                     {
                         lv_obj_t *parent_obj = obj;
                         {

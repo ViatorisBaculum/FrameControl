@@ -163,7 +163,7 @@ static uint16_t crc16_ccitt(const uint8_t *buf, size_t len)
   return crc;
 }
 
-// Callback-Funktion für empfangene Nachrichten
+// Callback function for received ESP-NOW messages
 void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
 {
   for (auto &receiver : receivers)
@@ -200,6 +200,10 @@ void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
                             (unsigned)receiver.telemetry.halfVoltageMv,
                             (unsigned)receiver.telemetry.operatingHours,
                             (unsigned)receiver.telemetry.lastChargedDate);
+
+              set_var_operating_hours1(receiver.telemetry.operatingHours);
+              set_var_operating_hours2(receiver.telemetry.operatingHours);
+              set_var_operating_hours3(receiver.telemetry.operatingHours);
             }
           }
         }

@@ -17,30 +17,38 @@ constexpr uint8_t LED_CONTROL_PIN = 22;
 
 // Protocol: header + payloads aligned with master
 #pragma pack(push, 1)
-enum MsgType : uint8_t { MSG_CMD = 1, MSG_TELEMETRY = 2, MSG_ACK = 3 };
-
-struct MsgHdr {
-  uint8_t magic;      // 0xA5
-  uint8_t version;    // 0x01
-  uint8_t type;       // MsgType
-  uint8_t channel;    // 0..N-1
-  uint16_t len;       // payload length
-  uint16_t seq;       // sequence id
-  uint16_t crc;       // CRC16-CCITT over header(with crc=0) XOR payload CRC
+enum MsgType : uint8_t
+{
+    MSG_CMD = 1,
+    MSG_TELEMETRY = 2,
+    MSG_ACK = 3
 };
 
-struct CmdPayload {
-  uint16_t brightness; // 0..100
-  uint8_t state;       // 0/1
-  uint8_t reqTelem;    // 0/1
+struct MsgHdr
+{
+    uint8_t magic;   // 0xA5
+    uint8_t version; // 0x01
+    uint8_t type;    // MsgType
+    uint8_t channel; // 0..N-1
+    uint16_t len;    // payload length
+    uint16_t seq;    // sequence id
+    uint16_t crc;    // CRC16-CCITT over header(with crc=0) XOR payload CRC
 };
 
-struct TelemetryPayload {
-  uint16_t appliedBrightness; // 0..100 actually set
-  uint8_t appliedState;       // 0/1 actually set
-  uint16_t halfVoltageMv;     // half of battery voltage in mV
-  uint32_t operatingHours;    // total operating hours
-  uint32_t lastChargedDate;   // device-defined
+struct CmdPayload
+{
+    uint16_t brightness; // 0..100
+    uint8_t state;       // 0/1
+    uint8_t reqTelem;    // 0/1
+};
+
+struct TelemetryPayload
+{
+    uint16_t appliedBrightness; // 0..100 actually set
+    uint8_t appliedState;       // 0/1 actually set
+    uint16_t halfVoltageMv;     // half of battery voltage in mV
+    uint32_t operatingHours;    // total operating hours
+    uint32_t lastChargedDate;   // device-defined
 };
 #pragma pack(pop)
 
@@ -50,9 +58,10 @@ static uint16_t currentBrightness = 0;
 static bool currentState = false;
 uint8_t senderMac[6] = {0};
 Preferences preferences;
-// Operating time tracking
-static uint32_t baseTotalSeconds = 0;   // persisted total seconds loaded at boot
-static uint32_t sessionStartMs = 0;     // millis() at session start
+// Operating time tracking: accumulate only when LED is ON, incl. deep sleep
+static uint32_t baseTotalSeconds = 0; // persisted total seconds loaded at boot
+static uint32_t sessionStartMs = 0;   // legacy, not used for accumulation anymore
+static uint32_t onStartMs = 0;        // millis() when LED was last turned ON in this wake session
 
 // function definitions
 void updateLedState();
@@ -105,24 +114,48 @@ void receiveMessage(const esp_now_recv_info *info, const uint8_t *data, int len)
 {
     memcpy(senderMac, info->src_addr, 6);
 
-    if (len < (int)sizeof(MsgHdr)) return;
+    if (len < (int)sizeof(MsgHdr))
+        return;
     const MsgHdr *hdr = reinterpret_cast<const MsgHdr *>(data);
-    if (hdr->magic != 0xA5 || hdr->version != 0x01) return;
-    if ((uint16_t)len != (uint16_t)(sizeof(MsgHdr) + hdr->len)) return;
+    if (hdr->magic != 0xA5 || hdr->version != 0x01)
+        return;
+    if ((uint16_t)len != (uint16_t)(sizeof(MsgHdr) + hdr->len))
+        return;
 
     // CRC check
-    MsgHdr tmp = *hdr; tmp.crc = 0;
+    MsgHdr tmp = *hdr;
+    tmp.crc = 0;
     uint16_t crc = crc16_ccitt(reinterpret_cast<const uint8_t *>(&tmp), sizeof(MsgHdr));
     uint16_t tail = crc16_ccitt(reinterpret_cast<const uint8_t *>(data) + sizeof(MsgHdr), hdr->len);
     crc ^= tail;
-    if (crc != hdr->crc) return;
+    if (crc != hdr->crc)
+        return;
 
     const uint8_t *payload = reinterpret_cast<const uint8_t *>(data) + sizeof(MsgHdr);
     if (hdr->type == MSG_CMD && hdr->len == sizeof(CmdPayload))
     {
         const CmdPayload *cmd = reinterpret_cast<const CmdPayload *>(payload);
         currentBrightness = cmd->brightness; // TODO: apply PWM if needed
-        currentState = cmd->state ? true : false;
+
+        // Handle LED state transitions to update operating time accumulator
+        bool newState = cmd->state ? true : false;
+        if (newState != currentState)
+        {
+            uint32_t nowMs = millis();
+            if (currentState)
+            {
+                // Was ON, turning OFF: add awake ON duration
+                if (onStartMs != 0)
+                    baseTotalSeconds += (nowMs - onStartMs) / 1000U;
+                onStartMs = 0;
+            }
+            else
+            {
+                // Was OFF, turning ON: start ON session timestamp
+                onStartMs = nowMs;
+            }
+        }
+        currentState = newState;
 
         updateLedState();
         updatePeerConnection();
@@ -193,8 +226,9 @@ void sendTelemetry(uint8_t channel, uint16_t seq)
     telem.appliedBrightness = currentBrightness;
     telem.appliedState = currentState ? 1 : 0;
     telem.halfVoltageMv = (uint16_t)analogReadMilliVolts(BATTERY_PIN);
-    telem.operatingHours = getCurrentTotalSeconds() / 3600U;
-    telem.lastChargedDate = 0;   // TODO: set appropriately
+    // Send total operating time in seconds (no division) for testing/precision
+    telem.operatingHours = getCurrentTotalSeconds(); // Later: / 3600U for hours
+    telem.lastChargedDate = 0;                       // TODO: set appropriately
 
     MsgHdr hdr{};
     hdr.magic = 0xA5;
@@ -232,8 +266,17 @@ void enterDeepSleep()
     Serial.println("Entering deep sleep");
 #endif
     // Persist up-to-date operating time before sleep
+    // If LED stays ON during deep sleep, include planned sleep duration
+    uint32_t nowMs = millis();
+    if (currentState)
+    {
+        if (onStartMs != 0)
+            baseTotalSeconds += (nowMs - onStartMs) / 1000U; // add awake ON duration
+        baseTotalSeconds += (DEEP_SLEEP_TIMEOUT / 1000000U); // add sleep duration in seconds
+        onStartMs = 0;                                       // will be re-armed on wake if still ON
+    }
     preferences.begin("framecontrol", false);
-    preferences.putULong("operating_seconds", getCurrentTotalSeconds());
+    preferences.putULong("operating_seconds", baseTotalSeconds);
     preferences.end();
 
     gpio_hold_en(static_cast<gpio_num_t>(LED_CONTROL_PIN)); // let the LED stay on during deep sleep
@@ -260,7 +303,9 @@ void saveStatus()
 {
     preferences.begin("framecontrol", false);
     preferences.putBool("led_status", currentState);
-    preferences.putULong("operating_seconds", getCurrentTotalSeconds());
+    uint32_t nowMs = millis();
+    uint32_t seconds = baseTotalSeconds + ((currentState && onStartMs != 0) ? ((nowMs - onStartMs) / 1000U) : 0U);
+    preferences.putULong("operating_seconds", seconds);
     preferences.end();
 }
 
@@ -271,13 +316,15 @@ void loadStatus()
     baseTotalSeconds = preferences.getULong("operating_seconds", 0);
     preferences.end();
     sessionStartMs = millis();
+    onStartMs = currentState ? millis() : 0;
 }
 
 // Compute total seconds = persisted base + this session elapsed
 static uint32_t getCurrentTotalSeconds()
 {
-    uint32_t elapsedMs = millis() - sessionStartMs;
-    return baseTotalSeconds + (elapsedMs / 1000U);
+    uint32_t nowMs = millis();
+    uint32_t onDelta = (currentState && onStartMs != 0) ? ((nowMs - onStartMs) / 1000U) : 0U;
+    return baseTotalSeconds + onDelta;
 }
 
 void setup()

@@ -15,6 +15,10 @@ float get_var_brightness_led1();
 float get_var_brightness_led2();
 float get_var_brightness_led3();
 
+void set_var_operating_hours1(uint32_t value);
+void set_var_operating_hours2(uint32_t value);
+void set_var_operating_hours3(uint32_t value);
+
 #ifdef __cplusplus
 }
 #endif
