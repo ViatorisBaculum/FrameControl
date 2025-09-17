@@ -26,6 +26,11 @@ lv_style_t *get_style_button_style_MAIN_CHECKED();
 void add_style_button_style(lv_obj_t *obj);
 void remove_style_button_style(lv_obj_t *obj);
 
+// Style: tabView
+lv_style_t *get_style_tab_view_MAIN_DEFAULT();
+void add_style_tab_view(lv_obj_t *obj);
+void remove_style_tab_view(lv_obj_t *obj);
+
 
 
 #ifdef __cplusplus

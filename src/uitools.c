@@ -68,19 +68,19 @@ float get_var_brightness_led3() { return brightness_led3; }
 
 void set_var_operating_hours1(uint32_t value) {
     if (objects.label_operating_hours_1 != NULL) {
-        lv_label_set_text_fmt(objects.label_operating_hours_1, "%u h", value);
+        lv_label_set_text_fmt(objects.label_operating_hours_1, "%lu h", (unsigned long)value);
     }
 }
 
 void set_var_operating_hours2(uint32_t value) {
     if (objects.label_operating_hours_2 != NULL) {
-        lv_label_set_text_fmt(objects.label_operating_hours_2, "%u h", value);
+        lv_label_set_text_fmt(objects.label_operating_hours_2, "%lu h", (unsigned long)value);
     }
 }
 
 void set_var_operating_hours3(uint32_t value) {
     if (objects.label_operating_hours_3 != NULL) {
-        lv_label_set_text_fmt(objects.label_operating_hours_3, "%u h", value);
+        lv_label_set_text_fmt(objects.label_operating_hours_3, "%lu h", (unsigned long)value);
     }
 }
 

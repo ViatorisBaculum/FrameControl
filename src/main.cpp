@@ -18,7 +18,7 @@ constexpr size_t NUM_RECEIVERS = sizeof(RECEIVER_MACS) / sizeof(RECEIVER_MACS[0]
 constexpr uint32_t SEND_INTERVAL = 100;
 constexpr uint32_t LED_UPDATE_INTERVAL = 500;
 constexpr uint32_t INACTIVITY_TIMEOUT = 600000;
-constexpr uint8_t BACKLIGHT_ACTIVE = 50;
+constexpr uint8_t BACKLIGHT_ACTIVE = 1.0f;
 constexpr uint8_t BACKLIGHT_INACTIVE = 0;
 
 // Message protocol: header + fixed payloads
@@ -68,6 +68,8 @@ struct Receiver
   bool desiredState;
   // last telemetry
   TelemetryPayload telemetry;
+  // set when new telemetry arrives (handled in loop task)
+  volatile bool telemetryDirty;
   // sequencing
   uint16_t nextSeq;
   uint16_t lastAckSeq;
@@ -76,13 +78,12 @@ struct Receiver
 
 // global variables
 Receiver receivers[NUM_RECEIVERS];
-lv_disp_t *display; // Define display here
 auto lv_last_tick = millis();
 Preferences preferences;
 uint8_t batteryPercentage = 0;
 
 // Function definitions
-void messageReceived(const uint8_t *mac, const uint8_t *data, int len);
+void messageReceived(const esp_now_recv_info *info, const uint8_t *data, int len);
 void updateBacklight();
 void sendMessage(Receiver &receiver);
 void initESPNow();
@@ -107,7 +108,7 @@ void initESPNow()
 
     // Peer-Info konfigurieren
     memcpy(receivers[i].peerInfo.peer_addr, receivers[i].mac, 6);
-    receivers[i].peerInfo.channel = 0;
+    receivers[i].peerInfo.channel = 1;
     receivers[i].peerInfo.encrypt = false;
 
     // Initialize desired brightness from UI vars per channel
@@ -164,11 +165,12 @@ static uint16_t crc16_ccitt(const uint8_t *buf, size_t len)
 }
 
 // Callback function for received ESP-NOW messages
-void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
+void IRAM_ATTR messageReceived(const esp_now_recv_info *info, const uint8_t *data, int len)
 {
+  const uint8_t *mac = info ? info->src_addr : nullptr;
   for (auto &receiver : receivers)
   {
-    if (memcmp(mac, receiver.mac, 6) == 0)
+    if (mac && memcmp(mac, receiver.mac, 6) == 0)
     {
       // Parse message header + payload
       if (len >= (int)sizeof(MsgHdr))
@@ -192,18 +194,16 @@ void IRAM_ATTR messageReceived(const uint8_t *mac, const uint8_t *data, int len)
             else if (hdr->type == MSG_TELEMETRY && hdr->len == sizeof(TelemetryPayload))
             {
               memcpy(&receiver.telemetry, payload, sizeof(TelemetryPayload));
+              // Mark for UI update in loop task (avoid calling LVGL from WiFi/ESPNOW context)
+              receiver.telemetryDirty = true;
               Serial.printf("TELEM %02X:%02X:%02X:%02X:%02X:%02X ch%u seq%u: bright=%u, state=%u, halfV=%u, hours=%u, date=%u\n",
-                            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+                            mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0, mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0,
                             hdr->channel, hdr->seq,
                             (unsigned)receiver.telemetry.appliedBrightness,
                             (unsigned)receiver.telemetry.appliedState,
                             (unsigned)receiver.telemetry.halfVoltageMv,
                             (unsigned)receiver.telemetry.operatingHours,
                             (unsigned)receiver.telemetry.lastChargedDate);
-
-              set_var_operating_hours1(receiver.telemetry.operatingHours);
-              set_var_operating_hours2(receiver.telemetry.operatingHours);
-              set_var_operating_hours3(receiver.telemetry.operatingHours);
             }
           }
         }
@@ -291,7 +291,8 @@ void sendMessage(Receiver &receiver)
 
 void updateBacklight()
 {
-  const bool isActive = (lv_disp_get_inactive_time(display) < INACTIVITY_TIMEOUT);
+  lv_disp_t *disp = lv_disp_get_default();
+  const bool isActive = (lv_disp_get_inactive_time(disp) < INACTIVITY_TIMEOUT);
   smartdisplay_lcd_set_backlight(isActive ? BACKLIGHT_ACTIVE : BACKLIGHT_INACTIVE);
 }
 
@@ -395,8 +396,10 @@ void setup()
   Serial.begin(115200);
 
   smartdisplay_init();
-  display = lv_disp_get_default();
-  lv_disp_set_rotation(display, LV_DISPLAY_ROTATION_90);
+  {
+    lv_disp_t *disp = lv_disp_get_default();
+    lv_disp_set_rotation(disp, LV_DISPLAY_ROTATION_90);
+  }
 
   // Restore last saved brightness levels before initializing ESP-NOW
   preferences.begin("framecontrol", true);
@@ -426,6 +429,27 @@ void loop()
       sendMessage(receiver);
       updateBatteryPercentage();
       receiver.lastSend = now;
+    }
+  }
+
+  // Apply telemetry-driven UI updates in the main loop context
+  for (size_t i = 0; i < NUM_RECEIVERS; ++i)
+  {
+    if (receivers[i].telemetryDirty)
+    {
+      switch (i)
+      {
+      case 0:
+        set_var_operating_hours1(receivers[i].telemetry.operatingHours);
+        break;
+      case 1:
+        set_var_operating_hours2(receivers[i].telemetry.operatingHours);
+        break;
+      case 2:
+        set_var_operating_hours3(receivers[i].telemetry.operatingHours);
+        break;
+      }
+      receivers[i].telemetryDirty = false;
     }
   }
 
