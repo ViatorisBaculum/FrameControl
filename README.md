@@ -12,7 +12,7 @@ FrameControl is a project developed using PlatformIO. It is designed to manage a
 
 1. Clone the repository:
    ```sh
-   git clone https://github.com/yourusername/FrameControl.git
+   git clone https://github.com/ViatorisBaculum/FrameControl.git
    ```
 2. Open the project with PlatformIO.
 
@@ -31,14 +31,15 @@ FrameControl is a project developed using PlatformIO. It is designed to manage a
    pio device monitor
    ```
 
-## Contributing
-
-Contributions are welcome! Please fork the repository and submit a pull request.
-
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.
+
+FrameControl builds upon components from [rzeldent/esp32-smartdisplay](https://github.com/rzeldent/esp32-smartdisplay),
+which is distributed under the GNU General Public License v3.0. Usage of this repository and any
+derivative works must therefore comply with the terms of the GPLv3, including preservation of the
+original copyright and licensing notices.
 
 ## Contact
 
-For any inquiries, please contact [w.stab@outlook.com](mailto:w.stab@outlook.com).
+For any inquiries, please contact me on github.
