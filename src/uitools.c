@@ -5,6 +5,7 @@
 #include <lvgl.h>
 
 #include "uitools.h"
+#include "ui/fonts.h"
 #include "ui/vars.h"
 #include "ui/screens.h"
 #include "ui/actions.h"
@@ -190,4 +191,42 @@ void action_switch_led(lv_event_t *e)
         return;
     }
     setLEDState_c();
+}
+
+void uitools_style_main_tabview(void)
+{
+    lv_obj_t *tab_page = objects.tab_home;
+    if (tab_page == NULL) {
+        return;
+    }
+
+    lv_obj_t *content = lv_obj_get_parent(tab_page);
+    if (content == NULL) {
+        return;
+    }
+
+    lv_obj_t *tabview = lv_obj_get_parent(content);
+    if (tabview == NULL) {
+        tabview = content;
+    }
+
+    lv_obj_t *tab_bar = lv_tabview_get_tab_bar(tabview);
+    if (tab_bar == NULL) {
+        return;
+    }
+
+    lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0xff000000), LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(tab_bar, LV_OPA_COVER, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0xff000000), LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_bg_opa(tab_bar, LV_OPA_COVER, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_color(tab_bar, lv_color_hex(0xffffffff), LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(tab_bar, &lv_font_montserrat_14, LV_PART_ITEMS | LV_STATE_DEFAULT);
+
+    lv_obj_set_style_bg_color(tab_bar, lv_color_hex(0xff000000), LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_bg_opa(tab_bar, LV_OPA_COVER, LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(tab_bar, lv_color_hex(0xffffffff), LV_PART_ITEMS | LV_STATE_CHECKED);
+
+    lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_DEFAULT);
+    lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_CHECKED);
 }

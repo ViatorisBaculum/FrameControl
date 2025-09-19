@@ -1,5 +1,5 @@
 // Only declare brightness helpers here; battery and LED state
-// accessors are declared in `ui/vars.h` and implemented in uitools.c.
+// accessors are declared in ui/vars.h and implemented in uitools.c.
 
 #pragma once
 
@@ -18,6 +18,8 @@ float get_var_brightness_led3();
 void set_var_operating_hours1(uint32_t value);
 void set_var_operating_hours2(uint32_t value);
 void set_var_operating_hours3(uint32_t value);
+
+void uitools_style_main_tabview(void);
 
 #ifdef __cplusplus
 }

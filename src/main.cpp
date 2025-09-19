@@ -7,6 +7,8 @@
 #include <WiFi.h>
 #include <uitools.h>
 #include <Preferences.h>
+#include <esp_wifi.h>
+#include <esp_mac.h>
 
 // const confs
 constexpr uint8_t RECEIVER_MACS[][6] = {
@@ -20,6 +22,7 @@ constexpr uint32_t LED_UPDATE_INTERVAL = 500;
 constexpr uint32_t INACTIVITY_TIMEOUT = 600000;
 constexpr uint8_t BACKLIGHT_ACTIVE = 1.0f;
 constexpr uint8_t BACKLIGHT_INACTIVE = 0;
+constexpr uint8_t MASTER_CHANNEL = 1;
 
 // Message protocol: header + fixed payloads
 #pragma pack(push, 1)
@@ -86,29 +89,40 @@ uint8_t batteryPercentage = 0;
 void messageReceived(const esp_now_recv_info *info, const uint8_t *data, int len);
 void updateBacklight();
 void sendMessage(Receiver &receiver);
+void sendAck(Receiver &receiver, uint8_t channel, uint16_t seq);
 void initESPNow();
 void action_switch_led(lv_event_t *e);
 void updateBatteryPercentage();
 float calculateBatteryPercentage(float voltage);
 void setLEDState();
 bool getLEDState(char preset);
+void printMasterMac();
 
 void initESPNow()
 {
   WiFi.mode(WIFI_STA);
+
   if (esp_now_init() != ESP_OK)
   {
     Serial.println("ESP-NOW initialisation failed");
     return;
   }
 
+  // (optional aber hilfreich in EU)
+  wifi_country_t c = {.cc = "EU", .schan = 1, .nchan = 13, .policy = WIFI_COUNTRY_POLICY_MANUAL};
+  esp_wifi_set_country(&c);
+
+  // Kanal hart setzen
+  esp_wifi_set_promiscuous(true);
+  esp_wifi_set_channel(MASTER_CHANNEL, WIFI_SECOND_CHAN_NONE);
+  esp_wifi_set_promiscuous(false);
+
+  // WICHTIG: peerInfo.channel = MASTER_CHANNEL (NICHT 0!)
   for (size_t i = 0; i < NUM_RECEIVERS; i++)
   {
     memcpy(receivers[i].mac, RECEIVER_MACS[i], 6);
-
-    // Peer-Info konfigurieren
     memcpy(receivers[i].peerInfo.peer_addr, receivers[i].mac, 6);
-    receivers[i].peerInfo.channel = 1;
+    receivers[i].peerInfo.channel = MASTER_CHANNEL; // <- statt 0
     receivers[i].peerInfo.encrypt = false;
 
     // Initialize desired brightness from UI vars per channel
@@ -144,6 +158,7 @@ void initESPNow()
 
   esp_now_register_recv_cb(messageReceived);
   Serial.println("ESP-NOW initialised");
+  printMasterMac();
 }
 
 // CRC16-CCITT (0x1021) helper
@@ -162,6 +177,37 @@ static uint16_t crc16_ccitt(const uint8_t *buf, size_t len)
     }
   }
   return crc;
+}
+
+void printMasterMac()
+{
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  Serial.printf("Master STA MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+void sendAck(Receiver &receiver, uint8_t channel, uint16_t seq)
+{
+  MsgHdr ack{};
+  ack.magic = 0xA5;
+  ack.version = 0x01;
+  ack.type = MSG_ACK;
+  ack.channel = channel;
+  ack.len = 0;
+  ack.seq = seq;
+  ack.crc = 0;
+
+  uint16_t crc = crc16_ccitt(reinterpret_cast<const uint8_t *>(&ack), sizeof(MsgHdr));
+  ack.crc = crc;
+
+  esp_err_t result = esp_now_send(receiver.mac, reinterpret_cast<const uint8_t *>(&ack), sizeof(MsgHdr));
+  if (result != ESP_OK)
+  {
+    Serial.printf("Error sending ACK to %02X:%02X:%02X:%02X:%02X:%02X\n",
+                  receiver.mac[0], receiver.mac[1], receiver.mac[2],
+                  receiver.mac[3], receiver.mac[4], receiver.mac[5]);
+  }
 }
 
 // Callback function for received ESP-NOW messages
@@ -196,6 +242,7 @@ void IRAM_ATTR messageReceived(const esp_now_recv_info *info, const uint8_t *dat
               memcpy(&receiver.telemetry, payload, sizeof(TelemetryPayload));
               // Mark for UI update in loop task (avoid calling LVGL from WiFi/ESPNOW context)
               receiver.telemetryDirty = true;
+              sendAck(receiver, hdr->channel, hdr->seq);
               Serial.printf("TELEM %02X:%02X:%02X:%02X:%02X:%02X ch%u seq%u: bright=%u, state=%u, halfV=%u, hours=%u, date=%u\n",
                             mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0, mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0,
                             hdr->channel, hdr->seq,
@@ -267,7 +314,12 @@ void sendMessage(Receiver &receiver)
   hdr.type = MSG_CMD;
   hdr.channel = (uint8_t)idx;
   hdr.len = sizeof(CmdPayload);
-  hdr.seq = receiver.nextSeq++;
+  if (receiver.nextSeq == 0)
+  {
+    receiver.nextSeq = 1;
+  }
+  hdr.seq = receiver.nextSeq;
+  receiver.nextSeq = receiver.nextSeq == 0xFFFF ? 1 : static_cast<uint16_t>(receiver.nextSeq + 1);
   hdr.crc = 0;
 
   uint8_t buffer[sizeof(MsgHdr) + sizeof(CmdPayload)];
@@ -413,6 +465,7 @@ void setup()
 
   initESPNow();
   ui_init();
+  uitools_style_main_tabview();
 
   Serial.println("System ready");
 }
