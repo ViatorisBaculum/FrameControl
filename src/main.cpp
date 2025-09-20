@@ -8,6 +8,7 @@
 #include <uitools.h>
 #include <Preferences.h>
 #include <esp_wifi.h>
+#include <esp_system.h>
 #include <esp_mac.h>
 
 // const confs
@@ -73,9 +74,6 @@ struct Receiver
   TelemetryPayload telemetry;
   // set when new telemetry arrives (handled in loop task)
   volatile bool telemetryDirty;
-  // sequencing
-  uint16_t nextSeq;
-  uint16_t lastAckSeq;
   uint32_t lastSend;
 };
 
@@ -143,8 +141,6 @@ void initESPNow()
     }
     receivers[i].desiredState = getLEDState('1' + i);
     receivers[i].telemetry = {};
-    receivers[i].nextSeq = 1;
-    receivers[i].lastAckSeq = 0;
 
     if (esp_now_add_peer(&receivers[i].peerInfo) != ESP_OK)
     {
@@ -189,6 +185,7 @@ void printMasterMac()
 
 void sendAck(Receiver &receiver, uint8_t channel, uint16_t seq)
 {
+  // Echo the telemetry sequence so the slave can confirm the handshake before sleeping.
   MsgHdr ack{};
   ack.magic = 0xA5;
   ack.version = 0x01;
@@ -235,7 +232,9 @@ void IRAM_ATTR messageReceived(const esp_now_recv_info *info, const uint8_t *dat
             const uint8_t *payload = reinterpret_cast<const uint8_t *>(data) + sizeof(MsgHdr);
             if (hdr->type == MSG_ACK)
             {
-              receiver.lastAckSeq = hdr->seq;
+              Serial.printf("ACK %02X:%02X:%02X:%02X:%02X:%02X ch%u seq%u\n",
+                            mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0, mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0,
+                            hdr->channel, hdr->seq);
             }
             else if (hdr->type == MSG_TELEMETRY && hdr->len == sizeof(TelemetryPayload))
             {
@@ -314,12 +313,13 @@ void sendMessage(Receiver &receiver)
   hdr.type = MSG_CMD;
   hdr.channel = (uint8_t)idx;
   hdr.len = sizeof(CmdPayload);
-  if (receiver.nextSeq == 0)
+  // Randomize the handshake sequence to avoid any shared state on the master.
+  uint16_t seq = static_cast<uint16_t>(esp_random() & 0xFFFF);
+  if (seq == 0)
   {
-    receiver.nextSeq = 1;
+    seq = 1;
   }
-  hdr.seq = receiver.nextSeq;
-  receiver.nextSeq = receiver.nextSeq == 0xFFFF ? 1 : static_cast<uint16_t>(receiver.nextSeq + 1);
+  hdr.seq = seq;
   hdr.crc = 0;
 
   uint8_t buffer[sizeof(MsgHdr) + sizeof(CmdPayload)];
