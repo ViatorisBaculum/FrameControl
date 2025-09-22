@@ -23,7 +23,13 @@ enum FlowGlobalVariables {
     FLOW_GLOBAL_VARIABLE_STATE_LED3 = 5,
     FLOW_GLOBAL_VARIABLE_BRIGHTNESS_LED1 = 6,
     FLOW_GLOBAL_VARIABLE_BRIGHTNESS_LED2 = 7,
-    FLOW_GLOBAL_VARIABLE_BRIGHTNESS_LED3 = 8
+    FLOW_GLOBAL_VARIABLE_BRIGHTNESS_LED3 = 8,
+    FLOW_GLOBAL_VARIABLE_LAST_CHARGED1 = 9,
+    FLOW_GLOBAL_VARIABLE_LAST_CHARGED2 = 10,
+    FLOW_GLOBAL_VARIABLE_LAST_CHARGED3 = 11,
+    FLOW_GLOBAL_VARIABLE_LED_ON_TIME1 = 12,
+    FLOW_GLOBAL_VARIABLE_LED_ON_TIME2 = 13,
+    FLOW_GLOBAL_VARIABLE_LED_ON_TIME3 = 14
 };
 
 // Native global variables
@@ -46,6 +52,18 @@ extern float get_var_brightness_led2();
 extern void set_var_brightness_led2(float value);
 extern float get_var_brightness_led3();
 extern void set_var_brightness_led3(float value);
+extern int32_t get_var_last_charged1();
+extern void set_var_last_charged1(int32_t value);
+extern int32_t get_var_last_charged2();
+extern void set_var_last_charged2(int32_t value);
+extern int32_t get_var_last_charged3();
+extern void set_var_last_charged3(int32_t value);
+extern int32_t get_var_led_on_time1();
+extern void set_var_led_on_time1(int32_t value);
+extern int32_t get_var_led_on_time2();
+extern void set_var_led_on_time2(int32_t value);
+extern int32_t get_var_led_on_time3();
+extern void set_var_led_on_time3(int32_t value);
 
 
 #ifdef __cplusplus

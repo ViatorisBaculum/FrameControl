@@ -31,6 +31,13 @@ lv_style_t *get_style_tab_view_MAIN_DEFAULT();
 void add_style_tab_view(lv_obj_t *obj);
 void remove_style_tab_view(lv_obj_t *obj);
 
+// Style: ActiveTab
+lv_style_t *get_style_active_tab_MAIN_CHECKED();
+lv_style_t *get_style_active_tab_MAIN_DEFAULT();
+lv_style_t *get_style_active_tab_MAIN_CHECKED_PRESSED();
+void add_style_active_tab(lv_obj_t *obj);
+void remove_style_active_tab(lv_obj_t *obj);
+
 
 
 #ifdef __cplusplus

@@ -4,22 +4,42 @@
 #pragma once
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-void set_var_brightness_led1(float value);
-void set_var_brightness_led2(float value);
-void set_var_brightness_led3(float value);
+    void set_var_brightness_led1(float value);
+    void set_var_brightness_led2(float value);
+    void set_var_brightness_led3(float value);
 
-float get_var_brightness_led1();
-float get_var_brightness_led2();
-float get_var_brightness_led3();
+    float get_var_brightness_led1();
+    float get_var_brightness_led2();
+    float get_var_brightness_led3();
 
-void set_var_operating_hours1(uint32_t value);
-void set_var_operating_hours2(uint32_t value);
-void set_var_operating_hours3(uint32_t value);
+    int32_t get_var_last_charged1();
+    int32_t get_var_last_charged2();
+    int32_t get_var_last_charged3();
 
-void uitools_style_main_tabview(void);
+    int32_t get_var_led_on_time1();
+    int32_t get_var_led_on_time2();
+    int32_t get_var_led_on_time3();
+
+    void set_var_operating_hours1(int32_t value);
+    void set_var_operating_hours2(int32_t value);
+    void set_var_operating_hours3(int32_t value);
+
+    void set_var_last_charged1(int32_t value);
+    void set_var_last_charged2(int32_t value);
+    void set_var_last_charged3(int32_t value);
+
+    void set_var_led_on_time1(int32_t value);
+    void set_var_led_on_time2(int32_t value);
+    void set_var_led_on_time3(int32_t value);
+
+    void uitools_update_channel_feedback(int idx, float battery_pct, float brightness_pct, bool pending);
+    void uitools_tick_pending(void);
+
+    void uitools_style_main_tabview(void);
 
 #ifdef __cplusplus
 }

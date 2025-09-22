@@ -81,7 +81,6 @@ struct Receiver
 Receiver receivers[NUM_RECEIVERS];
 auto lv_last_tick = millis();
 Preferences preferences;
-uint8_t batteryPercentage = 0;
 
 // Function definitions
 void messageReceived(const esp_now_recv_info *info, const uint8_t *data, int len);
@@ -377,42 +376,59 @@ float calculateBatteryPercentage(float halfVoltageMv)
 
 void updateBatteryPercentage()
 {
-  bool incrementBatteryPercentage = false;
+  for (size_t i = 0; i < NUM_RECEIVERS; ++i)
+  {
+    bool desiredState = false;
+    float desiredBrightness = 0.0f;
+    switch (i)
+    {
+    case 0:
+      desiredState = get_var_state_led1();
+      desiredBrightness = get_var_brightness_led1();
+      break;
+    case 1:
+      desiredState = get_var_state_led2();
+      desiredBrightness = get_var_brightness_led2();
+      break;
+    case 2:
+      desiredState = get_var_state_led3();
+      desiredBrightness = get_var_brightness_led3();
+      break;
+    default:
+      break;
+    }
 
-  if (receivers[0].telemetry.appliedState == (get_var_state_led1() ? 1 : 0))
-  {
-    set_var_battery_percentage1(calculateBatteryPercentage((float)receivers[0].telemetry.halfVoltageMv));
-  }
-  else
-  {
-    set_var_battery_percentage1(batteryPercentage);
-    incrementBatteryPercentage = true;
+    if (desiredBrightness <= 0.0f)
+    {
+      desiredState = false;
+      switch (i)
+      {
+      case 0:
+        set_var_state_led1(false);
+        break;
+      case 1:
+        set_var_state_led2(false);
+        break;
+      case 2:
+        set_var_state_led3(false);
+        break;
+      default:
+        break;
+      }
+    }
+
+    const TelemetryPayload &tele = receivers[i].telemetry;
+    bool pending = (tele.appliedState != (desiredState ? 1 : 0)) ||
+                   (tele.appliedBrightness != static_cast<uint16_t>(desiredBrightness + 0.5f));
+
+    float batteryPct = calculateBatteryPercentage(static_cast<float>(tele.halfVoltageMv));
+    uitools_update_channel_feedback(static_cast<int>(i),
+                                    batteryPct,
+                                    static_cast<float>(tele.appliedBrightness),
+                                    pending);
   }
 
-  if (receivers[1].telemetry.appliedState == (get_var_state_led2() ? 1 : 0))
-  {
-    set_var_battery_percentage2(calculateBatteryPercentage((float)receivers[1].telemetry.halfVoltageMv));
-  }
-  else
-  {
-    set_var_battery_percentage2(batteryPercentage);
-    incrementBatteryPercentage = true;
-  }
-
-  if (receivers[2].telemetry.appliedState == (get_var_state_led3() ? 1 : 0))
-  {
-    set_var_battery_percentage3(calculateBatteryPercentage((float)receivers[2].telemetry.halfVoltageMv));
-  }
-  else
-  {
-    set_var_battery_percentage3(batteryPercentage);
-    incrementBatteryPercentage = true;
-  }
-
-  if (incrementBatteryPercentage)
-  {
-    batteryPercentage = batteryPercentage > 100 ? 0 : (batteryPercentage + 1);
-  }
+  uitools_tick_pending();
 }
 
 void setLEDState()
@@ -493,13 +509,16 @@ void loop()
       switch (i)
       {
       case 0:
-        set_var_operating_hours1(receivers[i].telemetry.operatingHours);
+        set_var_led_on_time1(receivers[i].telemetry.operatingHours);
+        set_var_last_charged1(receivers[i].telemetry.lastChargedDate);
         break;
       case 1:
-        set_var_operating_hours2(receivers[i].telemetry.operatingHours);
+        set_var_led_on_time2(receivers[i].telemetry.operatingHours);
+        set_var_last_charged2(receivers[i].telemetry.lastChargedDate);
         break;
       case 2:
-        set_var_operating_hours3(receivers[i].telemetry.operatingHours);
+        set_var_led_on_time3(receivers[i].telemetry.operatingHours);
+        set_var_last_charged3(receivers[i].telemetry.lastChargedDate);
         break;
       }
       receivers[i].telemetryDirty = false;

@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <lvgl.h>
 
 #include "uitools.h"
@@ -9,6 +10,8 @@
 #include "ui/vars.h"
 #include "ui/screens.h"
 #include "ui/actions.h"
+
+extern lv_obj_t *tick_value_change_obj;
 
 // Backing storage for variables exposed via ui/vars.h and uitools.h
 static float battery_percentage1;
@@ -20,6 +23,85 @@ static float brightness_led3;
 static bool state_led1;
 static bool state_led2;
 static bool state_led3;
+static uint32_t led_on_time1;
+static uint32_t led_on_time2;
+static uint32_t led_on_time3;
+static uint32_t last_charged1;
+static uint32_t last_charged2;
+static uint32_t last_charged3;
+
+typedef struct
+{
+    bool active;
+    uint8_t phase;
+    uint8_t progress;
+    uint32_t lastTick;
+    float targetBattery;
+    float targetBrightness;
+} PendingAnim;
+
+static PendingAnim pendingAnim[3];
+static const uint32_t kPendingAnimStepMs = 2;
+static const uint8_t kPendingAnimStep = 2;
+
+static float get_desired_brightness(int idx)
+{
+    switch (idx)
+    {
+    case 0:
+        return brightness_led1;
+    case 1:
+        return brightness_led2;
+    case 2:
+        return brightness_led3;
+    default:
+        return 0.0f;
+    }
+}
+
+static void update_brightness_visuals(int idx, float value)
+{
+    if (value < 0.0f) value = 0.0f;
+    if (value > 100.0f) value = 100.0f;
+
+    int pct = (int)(value + 0.5f);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+
+    lv_obj_t *arc = NULL;
+    lv_obj_t *label = NULL;
+
+    switch (idx)
+    {
+    case 0:
+        arc = objects.brightness_percentage_1;
+        label = objects.label_brightness_1;
+        break;
+    case 1:
+        arc = objects.brightness_percentage_2;
+        label = objects.label_brightness_2;
+        break;
+    case 2:
+        arc = objects.brightness_percentage_3;
+        label = objects.label_brightness_3;
+        break;
+    default:
+        break;
+    }
+
+    if (arc != NULL)
+    {
+        lv_obj_t *prev_guard = tick_value_change_obj;
+        tick_value_change_obj = arc;
+        lv_arc_set_value(arc, pct);
+        tick_value_change_obj = prev_guard;
+    }
+
+    if (label != NULL)
+    {
+        lv_label_set_text_fmt(label, "%d%%", pct);
+    }
+}
 
 // Implementations for ui/vars.h (battery + LED states)
 float get_var_battery_percentage1() { return battery_percentage1; }
@@ -58,32 +140,273 @@ void set_var_state_led2(bool value) { state_led2 = value; }
 bool get_var_state_led3() { return state_led3; }
 void set_var_state_led3(bool value) { state_led3 = value; }
 
-// Brightness helpers exposed via uitools.h
-void set_var_brightness_led1(float value) { brightness_led1 = value; }
-void set_var_brightness_led2(float value) { brightness_led2 = value; }
-void set_var_brightness_led3(float value) { brightness_led3 = value; }
+void set_var_brightness_led1(float value) {
+    brightness_led1 = value;
+    update_brightness_visuals(0, value);
+}
 
 float get_var_brightness_led1() { return brightness_led1; }
+
+void set_var_brightness_led2(float value) {
+    brightness_led2 = value;
+    update_brightness_visuals(1, value);
+}
+
 float get_var_brightness_led2() { return brightness_led2; }
+
+void set_var_brightness_led3(float value) {
+    brightness_led3 = value;
+    update_brightness_visuals(2, value);
+}
+
 float get_var_brightness_led3() { return brightness_led3; }
 
-void set_var_operating_hours1(uint32_t value) {
+void set_var_led_on_time1(int32_t value) {
+    led_on_time1 = value;
     if (objects.label_operating_hours_1 != NULL) {
-        lv_label_set_text_fmt(objects.label_operating_hours_1, "%lu h", (unsigned long)value);
+        if (value >= 60 * 60 * 24) {
+            int32_t days = value / (60 * 60 * 24);
+            lv_label_set_text_fmt(objects.label_operating_hours_1, "%ld d", (long)days);
+            return;
+        } else if (value >= 60 * 60) {
+            int32_t hours = value / (60 * 60);
+            lv_label_set_text_fmt(objects.label_operating_hours_1, "%ld h", (long)hours);
+            return;
+        } else if (value >= 60) {
+            int32_t minutes = value / 60;
+            lv_label_set_text_fmt(objects.label_operating_hours_1, "%ld m", (long)minutes);
+            return;
+        } else {
+            lv_label_set_text_fmt(objects.label_operating_hours_1, "%ld s", (long)value);
+        }
     }
 }
 
-void set_var_operating_hours2(uint32_t value) {
+int32_t get_var_led_on_time1() { return led_on_time1; }    
+
+void set_var_led_on_time2(int32_t value) {
+    led_on_time2 = value;
     if (objects.label_operating_hours_2 != NULL) {
-        lv_label_set_text_fmt(objects.label_operating_hours_2, "%lu h", (unsigned long)value);
+        if (value >= 60 * 60 * 24) {
+            int32_t days = value / (60 * 60 * 24);
+            lv_label_set_text_fmt(objects.label_operating_hours_2, "%ld d", (long)days);
+            return;
+        } else if (value >= 60 * 60) {
+            int32_t hours = value / (60 * 60);
+            lv_label_set_text_fmt(objects.label_operating_hours_2, "%ld h", (long)hours);
+            return;
+        } else if (value >= 60) {
+            int32_t minutes = value / 60;
+            lv_label_set_text_fmt(objects.label_operating_hours_2, "%ld m", (long)minutes);
+            return;
+        } else {
+            lv_label_set_text_fmt(objects.label_operating_hours_2, "%ld s", (long)value);
+        }
     }
 }
 
-void set_var_operating_hours3(uint32_t value) {
+int32_t get_var_led_on_time2() { return led_on_time2; }
+
+void set_var_led_on_time3(int32_t value) {
+    led_on_time3 = value;
     if (objects.label_operating_hours_3 != NULL) {
-        lv_label_set_text_fmt(objects.label_operating_hours_3, "%lu h", (unsigned long)value);
+        if (value >= 60 * 60 * 24) {
+            int32_t days = value / (60 * 60 * 24);
+            lv_label_set_text_fmt(objects.label_operating_hours_3, "%ld d", (long)days);
+            return;
+        } else if (value >= 60 * 60) {
+            int32_t hours = value / (60 * 60);
+            lv_label_set_text_fmt(objects.label_operating_hours_3, "%ld h", (long)hours);
+            return;
+        } else if (value >= 60) {
+            int32_t minutes = value / 60;
+            lv_label_set_text_fmt(objects.label_operating_hours_3, "%ld m", (long)minutes);
+            return;
+        } else {
+            lv_label_set_text_fmt(objects.label_operating_hours_3, "%ld s", (long)value);
+        }
     }
 }
+
+int32_t get_var_led_on_time3() { return led_on_time3; }
+
+int32_t get_var_last_charged1() { return last_charged1; }
+void set_var_last_charged1(int32_t value) {
+    last_charged1 = value;
+    if (objects.label_charging_date_1 != NULL) {
+        if (value >= 60 * 60 * 24) {
+            int32_t days = value / (60 * 60 * 24);
+            lv_label_set_text_fmt(objects.label_charging_date_1, "%ld d", (long)days);
+            return;
+        } else if (value >= 60 * 60) {
+            int32_t hours = value / (60 * 60);
+            lv_label_set_text_fmt(objects.label_charging_date_1, "%ld h", (long)hours);
+            return;
+        } else if (value >= 60) {
+            int32_t minutes = value / 60;
+            lv_label_set_text_fmt(objects.label_charging_date_1, "%ld m", (long)minutes);
+            return;
+        } else {
+            lv_label_set_text_fmt(objects.label_charging_date_1, "%ld s", (long)value);
+        }
+    }
+}
+
+int32_t get_var_last_charged2() { return last_charged2; }
+void set_var_last_charged2(int32_t value) {
+    last_charged2 = value;
+    if (objects.label_charging_date_2 != NULL) {
+        if (value >= 60 * 60 * 24) {
+            int32_t days = value / (60 * 60 * 24);
+            lv_label_set_text_fmt(objects.label_charging_date_2, "%ld d", (long)days);
+            return;
+        } else if (value >= 60 * 60) {
+            int32_t hours = value / (60 * 60);
+            lv_label_set_text_fmt(objects.label_charging_date_2, "%ld h", (long)hours);
+            return;
+        } else if (value >= 60) {
+            int32_t minutes = value / 60;
+            lv_label_set_text_fmt(objects.label_charging_date_2, "%ld m", (long)minutes);
+            return;
+        } else {
+            lv_label_set_text_fmt(objects.label_charging_date_2, "%ld s", (long)value);
+        }
+    }
+}
+
+int32_t get_var_last_charged3() { return last_charged3; }
+void set_var_last_charged3(int32_t value) {
+    last_charged3 = value;
+    if (objects.label_charging_date_3 != NULL) {
+        if (value >= 60 * 60 * 24) {
+            int32_t days = value / (60 * 60 * 24);
+            lv_label_set_text_fmt(objects.label_charging_date_3, "%ld d", (long)days);
+            return;
+        } else if (value >= 60 * 60) {
+            int32_t hours = value / (60 * 60);
+            lv_label_set_text_fmt(objects.label_charging_date_3, "%ld h", (long)hours);
+            return;
+        } else if (value >= 60) {
+            int32_t minutes = value / 60;
+            lv_label_set_text_fmt(objects.label_charging_date_3, "%ld m", (long)minutes);
+            return;
+        } else {
+            lv_label_set_text_fmt(objects.label_charging_date_3, "%ld s", (long)value);
+        }
+    }
+}
+
+static void set_battery_display(int idx, float value)
+{
+    if (value < 0.0f) value = 0.0f;
+    if (value > 100.0f) value = 100.0f;
+
+    switch (idx)
+    {
+    case 0:
+        set_var_battery_percentage1(value);
+        break;
+    case 1:
+        set_var_battery_percentage2(value);
+        break;
+    case 2:
+        set_var_battery_percentage3(value);
+        break;
+    default:
+        break;
+    }
+}
+
+static void set_brightness_display(int idx, float value)
+{
+    update_brightness_visuals(idx, value);
+}
+
+static void apply_target_display(int idx)
+{
+    set_battery_display(idx, pendingAnim[idx].targetBattery);
+    set_brightness_display(idx, pendingAnim[idx].targetBrightness);
+}
+
+void uitools_update_channel_feedback(int idx, float battery_pct, float brightness_pct, bool pending)
+{
+    if (idx < 0 || idx >= 3)
+    {
+        return;
+    }
+
+    PendingAnim *anim = &pendingAnim[idx];
+    anim->targetBattery = battery_pct;
+    anim->targetBrightness = brightness_pct;
+
+    float displayBrightness = pending ? get_desired_brightness(idx) : brightness_pct;
+    update_brightness_visuals(idx, displayBrightness);
+
+    if (!pending)
+    {
+        anim->active = false;
+        anim->phase = 0;
+        anim->progress = 0;
+        anim->lastTick = 0;
+        apply_target_display(idx);
+        return;
+    }
+
+    if (!anim->active)
+    {
+        anim->active = true;
+        anim->phase = 0;
+        anim->progress = 0;
+        anim->lastTick = 0;
+    }
+}
+
+void uitools_tick_pending(void)
+{
+    uint32_t now = lv_tick_get();
+    for (int idx = 0; idx < 3; ++idx)
+    {
+        PendingAnim *anim = &pendingAnim[idx];
+        if (!anim->active)
+        {
+            continue;
+        }
+
+        if (anim->lastTick != 0 && (now - anim->lastTick) < kPendingAnimStepMs)
+        {
+            continue;
+        }
+
+        anim->lastTick = now;
+        float battery = 0.0f;
+        switch (anim->phase)
+        {
+        case 0:
+            battery = (float)anim->progress;
+            break;
+        case 1:
+            battery = 100.0f;
+            break;
+        case 2:
+            battery = 100.0f - (float)anim->progress;
+            break;
+        default:
+            battery = 0.0f;
+            break;
+        }
+
+        set_battery_display(idx, battery);
+        update_brightness_visuals(idx, get_desired_brightness(idx));
+
+        anim->progress = (uint8_t)(anim->progress + kPendingAnimStep);
+        if (anim->progress > 100)
+        {
+            anim->progress = 0;
+            anim->phase = (uint8_t)((anim->phase + 1) & 0x03);
+        }
+    }
+}
+
 
 // UI event: refresh brightness from slider and +/- buttons
 void action_change_brightness(lv_event_t *e)
@@ -230,3 +553,4 @@ void uitools_style_main_tabview(void)
     lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_CHECKED);
 }
+
