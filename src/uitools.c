@@ -68,33 +68,21 @@ static void update_brightness_visuals(int idx, float value)
     if (pct < 0) pct = 0;
     if (pct > 100) pct = 100;
 
-    lv_obj_t *arc = NULL;
     lv_obj_t *label = NULL;
 
     switch (idx)
     {
     case 0:
-        arc = objects.brightness_percentage_1;
         label = objects.label_brightness_1;
         break;
     case 1:
-        arc = objects.brightness_percentage_2;
         label = objects.label_brightness_2;
         break;
     case 2:
-        arc = objects.brightness_percentage_3;
         label = objects.label_brightness_3;
         break;
     default:
         break;
-    }
-
-    if (arc != NULL)
-    {
-        lv_obj_t *prev_guard = tick_value_change_obj;
-        tick_value_change_obj = arc;
-        lv_arc_set_value(arc, pct);
-        tick_value_change_obj = prev_guard;
     }
 
     if (label != NULL)
@@ -502,17 +490,30 @@ void action_switch_led(lv_event_t *e)
     switch (userData)
     {
     case 0:
+        if (value && get_var_brightness_led1() <= 0.0f)
+        {
+            set_var_brightness_led1(100.0f);
+        }
         set_var_state_led1(value);
         break;
     case 1:
+        if (value && get_var_brightness_led2() <= 0.0f)
+        {
+            set_var_brightness_led2(100.0f);
+        }
         set_var_state_led2(value);
         break;
     case 2:
+        if (value && get_var_brightness_led3() <= 0.0f)
+        {
+            set_var_brightness_led3(100.0f);
+        }
         set_var_state_led3(value);
         break;
     default:
         return;
     }
+    
     setLEDState_c();
 }
 

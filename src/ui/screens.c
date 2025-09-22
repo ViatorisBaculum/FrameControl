@@ -113,6 +113,39 @@ static void event_handler_cb_main_button_power_3(lv_event_t *e) {
     }
 }
 
+static void event_handler_cb_main_slider_brightness_1(lv_event_t *e) {
+    lv_event_code_t event = lv_event_get_code(e);
+    if (event == LV_EVENT_VALUE_CHANGED) {
+        lv_obj_t *ta = lv_event_get_target(e);
+        if (tick_value_change_obj != ta) {
+            int32_t value = lv_slider_get_value(ta);
+            set_var_brightness_led1(value);
+        }
+    }
+}
+
+static void event_handler_cb_main_slider_brightness_2(lv_event_t *e) {
+    lv_event_code_t event = lv_event_get_code(e);
+    if (event == LV_EVENT_VALUE_CHANGED) {
+        lv_obj_t *ta = lv_event_get_target(e);
+        if (tick_value_change_obj != ta) {
+            int32_t value = lv_slider_get_value(ta);
+            set_var_brightness_led2(value);
+        }
+    }
+}
+
+static void event_handler_cb_main_slider_brightness_3(lv_event_t *e) {
+    lv_event_code_t event = lv_event_get_code(e);
+    if (event == LV_EVENT_VALUE_CHANGED) {
+        lv_obj_t *ta = lv_event_get_target(e);
+        if (tick_value_change_obj != ta) {
+            int32_t value = lv_slider_get_value(ta);
+            set_var_brightness_led3(value);
+        }
+    }
+}
+
 void create_screen_main() {
     lv_obj_t *obj = lv_obj_create(0);
     objects.main = obj;
@@ -460,8 +493,8 @@ void create_screen_main() {
                             objects.slider_brightness_1 = obj;
                             lv_obj_set_pos(obj, 171, 21);
                             lv_obj_set_size(obj, 112, 12);
-                            lv_slider_set_value(obj, 100, LV_ANIM_OFF);
                             lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_VALUE_CHANGED, (void *)12);
+                            lv_obj_add_event_cb(obj, event_handler_cb_main_slider_brightness_1, LV_EVENT_ALL, 0);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_INDICATOR | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -614,8 +647,8 @@ void create_screen_main() {
                             objects.slider_brightness_2 = obj;
                             lv_obj_set_pos(obj, 171, 78);
                             lv_obj_set_size(obj, 112, 12);
-                            lv_slider_set_value(obj, 75, LV_ANIM_OFF);
                             lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_VALUE_CHANGED, (void *)22);
+                            lv_obj_add_event_cb(obj, event_handler_cb_main_slider_brightness_2, LV_EVENT_ALL, 0);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_INDICATOR | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -768,8 +801,8 @@ void create_screen_main() {
                             objects.slider_brightness_3 = obj;
                             lv_obj_set_pos(obj, 171, 135);
                             lv_obj_set_size(obj, 112, 12);
-                            lv_slider_set_value(obj, 85, LV_ANIM_OFF);
                             lv_obj_add_event_cb(obj, action_change_brightness, LV_EVENT_VALUE_CHANGED, (void *)32);
+                            lv_obj_add_event_cb(obj, event_handler_cb_main_slider_brightness_3, LV_EVENT_ALL, 0);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_INDICATOR | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_INDICATOR | LV_STATE_CHECKED);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
@@ -916,6 +949,33 @@ void tick_screen_main() {
             tick_value_change_obj = objects.button_power_3;
             if (new_val) lv_obj_add_state(objects.button_power_3, LV_STATE_CHECKED);
             else lv_obj_clear_state(objects.button_power_3, LV_STATE_CHECKED);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        int32_t new_val = get_var_brightness_led1();
+        int32_t cur_val = lv_slider_get_value(objects.slider_brightness_1);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.slider_brightness_1;
+            lv_slider_set_value(objects.slider_brightness_1, new_val, LV_ANIM_OFF);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        int32_t new_val = get_var_brightness_led2();
+        int32_t cur_val = lv_slider_get_value(objects.slider_brightness_2);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.slider_brightness_2;
+            lv_slider_set_value(objects.slider_brightness_2, new_val, LV_ANIM_OFF);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        int32_t new_val = get_var_brightness_led3();
+        int32_t cur_val = lv_slider_get_value(objects.slider_brightness_3);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.slider_brightness_3;
+            lv_slider_set_value(objects.slider_brightness_3, new_val, LV_ANIM_OFF);
             tick_value_change_obj = NULL;
         }
     }
