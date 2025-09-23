@@ -13,6 +13,10 @@
 
 extern lv_obj_t *tick_value_change_obj;
 
+extern void (*tick_screen_funcs[])(void);
+
+static void (*tick_screen_main_original)(void) = NULL;
+
 // Backing storage for variables exposed via ui/vars.h and uitools.h
 static float battery_percentage1;
 static float battery_percentage2;
@@ -38,11 +42,12 @@ typedef struct
     uint32_t lastTick;
     float targetBattery;
     float targetBrightness;
+    float lastDisplayValue;
 } PendingAnim;
 
 static PendingAnim pendingAnim[3];
-static const uint32_t kPendingAnimStepMs = 2;
-static const uint8_t kPendingAnimStep = 2;
+static const uint32_t kPendingAnimStepMs = 20;
+static const uint8_t kPendingAnimStep = 5;
 
 static float get_desired_brightness(int idx)
 {
@@ -74,12 +79,15 @@ static void update_brightness_visuals(int idx, float value)
     {
     case 0:
         label = objects.label_brightness_1;
+        brightness_led1 = value;
         break;
     case 1:
         label = objects.label_brightness_2;
+        brightness_led2 = value;
         break;
     case 2:
         label = objects.label_brightness_3;
+        brightness_led3 = value;
         break;
     default:
         break;
@@ -91,13 +99,23 @@ static void update_brightness_visuals(int idx, float value)
     }
 }
 
+static void set_arc_value_guarded(lv_obj_t *arc, int32_t value)
+{
+    if (arc == NULL) return;
+
+    tick_value_change_obj = arc;
+    lv_arc_set_value(arc, value);
+    tick_value_change_obj = NULL;
+}
+
+
 // Implementations for ui/vars.h (battery + LED states)
 float get_var_battery_percentage1() { return battery_percentage1; }
 void set_var_battery_percentage1(float value) { 
     battery_percentage1 = value; 
     if (objects.label_battery_percentage_1 != NULL) {
         int pct = (int)(battery_percentage1 + 0.5f);
-        lv_label_set_text_fmt(objects.label_battery_percentage_1, "%d%%", pct);
+        lv_label_set_text_fmt(objects.label_battery_percentage_1, "%d%%", (int)pct);
     }
 }
 
@@ -106,7 +124,7 @@ void set_var_battery_percentage2(float value) {
     battery_percentage2 = value; 
     if (objects.label_battery_percentage_2 != NULL) {
         int pct = (int)(battery_percentage2 + 0.5f);
-        lv_label_set_text_fmt(objects.label_battery_percentage_2, "%d%%", pct);
+        lv_label_set_text_fmt(objects.label_battery_percentage_2, "%d%%", (int)pct);
     }
 }
 
@@ -115,7 +133,7 @@ void set_var_battery_percentage3(float value) {
     battery_percentage3 = value; 
     if (objects.label_battery_percentage_3 != NULL) {
         int pct = (int)(battery_percentage3 + 0.5f);
-        lv_label_set_text_fmt(objects.label_battery_percentage_3, "%d%%", pct);
+        lv_label_set_text_fmt(objects.label_battery_percentage_3, "%d%%", (int)pct);
     }
 }
 
@@ -129,21 +147,18 @@ bool get_var_state_led3() { return state_led3; }
 void set_var_state_led3(bool value) { state_led3 = value; }
 
 void set_var_brightness_led1(float value) {
-    brightness_led1 = value;
     update_brightness_visuals(0, value);
 }
 
 float get_var_brightness_led1() { return brightness_led1; }
 
 void set_var_brightness_led2(float value) {
-    brightness_led2 = value;
     update_brightness_visuals(1, value);
 }
 
 float get_var_brightness_led2() { return brightness_led2; }
 
 void set_var_brightness_led3(float value) {
-    brightness_led3 = value;
     update_brightness_visuals(2, value);
 }
 
@@ -327,9 +342,6 @@ void uitools_update_channel_feedback(int idx, float battery_pct, float brightnes
     anim->targetBattery = battery_pct;
     anim->targetBrightness = brightness_pct;
 
-    float displayBrightness = pending ? get_desired_brightness(idx) : brightness_pct;
-    update_brightness_visuals(idx, displayBrightness);
-
     if (!pending)
     {
         anim->active = false;
@@ -337,6 +349,7 @@ void uitools_update_channel_feedback(int idx, float battery_pct, float brightnes
         anim->progress = 0;
         anim->lastTick = 0;
         apply_target_display(idx);
+        anim->lastDisplayValue = anim->targetBattery;
         return;
     }
 
@@ -346,6 +359,51 @@ void uitools_update_channel_feedback(int idx, float battery_pct, float brightnes
         anim->phase = 0;
         anim->progress = 0;
         anim->lastTick = 0;
+        anim->lastDisplayValue = 0.0f;
+    }
+}
+
+static void update_pending_animation_visuals(int idx, float value)
+{
+    PendingAnim *anim = &pendingAnim[idx];
+    anim->lastDisplayValue = value;
+
+    int32_t int_value = (int32_t)(value + 0.5f);
+    if (int_value < 0) int_value = 0;
+    if (int_value > 100) int_value = 100;
+
+    // Update battery arc and its label
+    switch (idx)
+    {
+    case 0:
+        set_arc_value_guarded(objects.battery_percentage_1, int_value);
+        if (objects.label_battery_percentage_1) lv_label_set_text_fmt(objects.label_battery_percentage_1, "%d%%", (int)int_value);
+        break;
+    case 1:
+        set_arc_value_guarded(objects.battery_percentage_2, int_value);
+        if (objects.label_battery_percentage_2) lv_label_set_text_fmt(objects.label_battery_percentage_2, "%d%%", (int)int_value);
+        break;
+    case 2:
+        set_arc_value_guarded(objects.battery_percentage_3, int_value);
+        if (objects.label_battery_percentage_3) lv_label_set_text_fmt(objects.label_battery_percentage_3, "%d%%", (int)int_value);
+        break;
+    }
+
+    // Update brightness arc and its label
+    switch (idx)
+    {
+    case 0:
+        set_arc_value_guarded(objects.brightness_percentage_1, int_value);
+        if (objects.label_brightness_1) lv_label_set_text_fmt(objects.label_brightness_1, "%d%%", (int)int_value);
+        break;
+    case 1:
+        set_arc_value_guarded(objects.brightness_percentage_2, int_value);
+        if (objects.label_brightness_2) lv_label_set_text_fmt(objects.label_brightness_2, "%d%%", (int)int_value);
+        break;
+    case 2:
+        set_arc_value_guarded(objects.brightness_percentage_3, int_value);
+        if (objects.label_brightness_3) lv_label_set_text_fmt(objects.label_brightness_3, "%d%%", (int)int_value);
+        break;
     }
 }
 
@@ -366,35 +424,68 @@ void uitools_tick_pending(void)
         }
 
         anim->lastTick = now;
-        float battery = 0.0f;
+        float animated_value = 0.0f;
         switch (anim->phase)
         {
-        case 0:
-            battery = (float)anim->progress;
+        case 0: // Rise
+            animated_value = (float)anim->progress;
             break;
-        case 1:
-            battery = 100.0f;
-            break;
-        case 2:
-            battery = 100.0f - (float)anim->progress;
+        case 1: // Fall
+            animated_value = 100.0f - (float)anim->progress;
             break;
         default:
-            battery = 0.0f;
+            anim->phase = 0;
+            anim->progress = 0;
+            animated_value = 0.0f;
             break;
         }
 
-        set_battery_display(idx, battery);
-        update_brightness_visuals(idx, get_desired_brightness(idx));
+        update_pending_animation_visuals(idx, animated_value);
 
         anim->progress = (uint8_t)(anim->progress + kPendingAnimStep);
         if (anim->progress > 100)
         {
             anim->progress = 0;
-            anim->phase = (uint8_t)((anim->phase + 1) & 0x03);
+            anim->phase = (anim->phase + 1) % 2; // Cycle between phase 0 and 1
         }
     }
 }
 
+
+static void uitools_tick_screen_main(void)
+{
+    if (tick_screen_main_original)
+    {
+        tick_screen_main_original();
+    }
+
+    for (int idx = 0; idx < 3; ++idx)
+    {
+        PendingAnim *anim = &pendingAnim[idx];
+        if (!anim->active)
+        {
+            continue;
+        }
+
+        update_pending_animation_visuals(idx, anim->lastDisplayValue);
+    }
+}
+
+void uitools_install_tick_screen_hook(void)
+{
+    if (tick_screen_main_original != NULL)
+    {
+        return;
+    }
+
+    tick_screen_main_original = tick_screen_funcs[0];
+    if (tick_screen_main_original == NULL)
+    {
+        return;
+    }
+
+    tick_screen_funcs[0] = uitools_tick_screen_main;
+}
 
 // UI event: refresh brightness from slider and +/- buttons
 void action_change_brightness(lv_event_t *e)
@@ -554,4 +645,3 @@ void uitools_style_main_tabview(void)
     lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_DEFAULT);
     lv_obj_set_style_border_opa(tab_bar, LV_OPA_0, LV_PART_ITEMS | LV_STATE_CHECKED);
 }
-

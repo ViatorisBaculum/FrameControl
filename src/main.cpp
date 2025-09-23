@@ -481,6 +481,7 @@ void setup()
 
   initESPNow();
   ui_init();
+  uitools_install_tick_screen_hook();
   uitools_style_main_tabview();
 
   Serial.println("System ready");

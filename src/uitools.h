@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -36,6 +38,7 @@ extern "C"
     void set_var_led_on_time2(int32_t value);
     void set_var_led_on_time3(int32_t value);
 
+    void uitools_install_tick_screen_hook(void);
     void uitools_update_channel_feedback(int idx, float battery_pct, float brightness_pct, bool pending);
     void uitools_tick_pending(void);
 
