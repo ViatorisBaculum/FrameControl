@@ -10,6 +10,7 @@
 #include <esp_wifi.h>
 #include <esp_system.h>
 #include <esp_mac.h>
+#include <driver/gpio.h>
 
 // const confs
 constexpr uint8_t RECEIVER_MACS[][6] = {
@@ -21,9 +22,11 @@ constexpr size_t NUM_RECEIVERS = sizeof(RECEIVER_MACS) / sizeof(RECEIVER_MACS[0]
 constexpr uint32_t SEND_INTERVAL = 100;
 constexpr uint32_t LED_UPDATE_INTERVAL = 500;
 constexpr uint32_t INACTIVITY_TIMEOUT = 600000;
+constexpr uint32_t PIR_INACTIVITY_MS = 2000;
 constexpr uint8_t BACKLIGHT_ACTIVE = 1.0f;
 constexpr uint8_t BACKLIGHT_INACTIVE = 0;
 constexpr uint8_t MASTER_CHANNEL = 1;
+constexpr gpio_num_t pirPin = GPIO_NUM_22;
 
 // Message protocol: header + fixed payloads
 #pragma pack(push, 1)
@@ -484,14 +487,122 @@ void setup()
   uitools_install_tick_screen_hook();
   uitools_style_main_tabview();
 
+  pinMode(pirPin, INPUT);
+
   Serial.println("System ready");
+}
+
+static inline bool readPirSensor()
+{
+  bool motion = digitalRead(pirPin) != 0;
+  bool useSensor = get_var_use_pir_sensor();
+  if (!useSensor)
+    return true; // always "motion" if PIR sensor is disabled
+
+  return motion;
+}
+
+static inline bool getDesiredStateVar(size_t idx)
+{
+  switch (idx)
+  {
+  case 0:
+    return get_var_state_led1();
+  case 1:
+    return get_var_state_led2();
+  case 2:
+    return get_var_state_led3();
+  default:
+    return false;
+  }
+}
+
+static inline void setDesiredStateVar(size_t idx, bool state)
+{
+  switch (idx)
+  {
+  case 0:
+    set_var_state_led1(state);
+    break;
+  case 1:
+    set_var_state_led2(state);
+    break;
+  case 2:
+    set_var_state_led3(state);
+    break;
+  default:
+    break;
+  }
+
+  if (idx < NUM_RECEIVERS)
+  {
+    receivers[idx].desiredState = state;
+  }
 }
 
 void loop()
 {
   const uint32_t now = millis();
+  const bool motion = readPirSensor();
 
-  // Sende an alle Empfänger im Intervall
+  static bool sensorInitialised = false;
+  static bool lastSensorState = false;
+  static uint32_t lastMotionMs = 0;
+  static bool overrideActive = false;
+  static bool savedStates[NUM_RECEIVERS];
+
+  if (!sensorInitialised)
+  {
+    lastSensorState = motion;
+    lastMotionMs = now;
+    sensorInitialised = true;
+  }
+
+  if (motion != lastSensorState)
+  {
+    Serial.printf("PIR sensor: %s\n", motion ? "motion" : "idle");
+    lastSensorState = motion;
+  }
+
+  if (motion)
+  {
+    lastMotionMs = now;
+    if (overrideActive)
+    {
+      for (size_t i = 0; i < NUM_RECEIVERS; ++i)
+      {
+        setDesiredStateVar(i, savedStates[i]);
+      }
+      Serial.println("PIR sensor: motion -> LEDs restored");
+      overrideActive = false;
+    }
+  }
+  else
+  {
+    if (!overrideActive && (now - lastMotionMs) >= PIR_INACTIVITY_MS)
+    {
+      for (size_t i = 0; i < NUM_RECEIVERS; ++i)
+      {
+        bool currentState = getDesiredStateVar(i);
+        savedStates[i] = currentState;
+        setDesiredStateVar(i, false);
+      }
+      Serial.println("PIR sensor: inactivity -> LEDs off");
+      overrideActive = true;
+    }
+    else if (overrideActive)
+    {
+      for (size_t i = 0; i < NUM_RECEIVERS; ++i)
+      {
+        if (getDesiredStateVar(i))
+        {
+          setDesiredStateVar(i, false);
+        }
+      }
+    }
+  }
+
+  // send messages at regular intervals
   for (auto &receiver : receivers)
   {
     if (now - receiver.lastSend >= SEND_INTERVAL)

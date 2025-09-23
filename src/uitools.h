@@ -44,6 +44,9 @@ extern "C"
 
     void uitools_style_main_tabview(void);
 
+    bool get_var_use_pir_sensor();
+    void set_var_use_pir_sensor(bool value);
+
 #ifdef __cplusplus
 }
 #endif

@@ -146,6 +146,17 @@ static void event_handler_cb_main_slider_brightness_3(lv_event_t *e) {
     }
 }
 
+static void event_handler_cb_main_obj0(lv_event_t *e) {
+    lv_event_code_t event = lv_event_get_code(e);
+    if (event == LV_EVENT_VALUE_CHANGED) {
+        lv_obj_t *ta = lv_event_get_target(e);
+        if (tick_value_change_obj != ta) {
+            bool value = lv_obj_has_state(ta, LV_STATE_CHECKED);
+            set_var_use_pir_sensor(value);
+        }
+    }
+}
+
 void create_screen_main() {
     lv_obj_t *obj = lv_obj_create(0);
     objects.main = obj;
@@ -156,7 +167,7 @@ void create_screen_main() {
         lv_obj_t *parent_obj = obj;
         {
             lv_obj_t *obj = lv_tabview_create(parent_obj);
-            objects.obj0 = obj;
+            objects.obj1 = obj;
             lv_obj_set_pos(obj, 0, 0);
             lv_obj_set_size(obj, 320, 240);
             lv_tabview_set_tab_bar_position(obj, LV_DIR_TOP);
@@ -832,7 +843,7 @@ void create_screen_main() {
                         }
                         {
                             lv_obj_t *obj = lv_switch_create(parent_obj);
-                            objects.obj1 = obj;
+                            objects.obj2 = obj;
                             lv_obj_set_pos(obj, 84, 165);
                             lv_obj_set_size(obj, 30, 16);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
@@ -850,9 +861,10 @@ void create_screen_main() {
                         }
                         {
                             lv_obj_t *obj = lv_switch_create(parent_obj);
-                            objects.obj2 = obj;
+                            objects.obj0 = obj;
                             lv_obj_set_pos(obj, 210, 165);
                             lv_obj_set_size(obj, 30, 17);
+                            lv_obj_add_event_cb(obj, event_handler_cb_main_obj0, LV_EVENT_ALL, 0);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_KNOB | LV_STATE_CHECKED);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -976,6 +988,16 @@ void tick_screen_main() {
         if (new_val != cur_val) {
             tick_value_change_obj = objects.slider_brightness_3;
             lv_slider_set_value(objects.slider_brightness_3, new_val, LV_ANIM_OFF);
+            tick_value_change_obj = NULL;
+        }
+    }
+    {
+        bool new_val = get_var_use_pir_sensor();
+        bool cur_val = lv_obj_has_state(objects.obj0, LV_STATE_CHECKED);
+        if (new_val != cur_val) {
+            tick_value_change_obj = objects.obj0;
+            if (new_val) lv_obj_add_state(objects.obj0, LV_STATE_CHECKED);
+            else lv_obj_clear_state(objects.obj0, LV_STATE_CHECKED);
             tick_value_change_obj = NULL;
         }
     }

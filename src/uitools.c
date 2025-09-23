@@ -33,6 +33,7 @@ static uint32_t led_on_time3;
 static uint32_t last_charged1;
 static uint32_t last_charged2;
 static uint32_t last_charged3;
+bool use_pir_sensor;
 
 typedef struct
 {
@@ -108,6 +109,13 @@ static void set_arc_value_guarded(lv_obj_t *arc, int32_t value)
     tick_value_change_obj = NULL;
 }
 
+bool get_var_use_pir_sensor() {
+    return use_pir_sensor;
+}
+
+void set_var_use_pir_sensor(bool value) {
+    use_pir_sensor = value;
+}
 
 // Implementations for ui/vars.h (battery + LED states)
 float get_var_battery_percentage1() { return battery_percentage1; }
