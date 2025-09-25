@@ -30,7 +30,8 @@ enum FlowGlobalVariables {
     FLOW_GLOBAL_VARIABLE_LED_ON_TIME1 = 12,
     FLOW_GLOBAL_VARIABLE_LED_ON_TIME2 = 13,
     FLOW_GLOBAL_VARIABLE_LED_ON_TIME3 = 14,
-    FLOW_GLOBAL_VARIABLE_USE_PIR_SENSOR = 15
+    FLOW_GLOBAL_VARIABLE_USE_PIR_SENSOR = 15,
+    FLOW_GLOBAL_VARIABLE_USE_AUTOMATIC_MODE = 16
 };
 
 // Native global variables
@@ -67,6 +68,8 @@ extern int32_t get_var_led_on_time3();
 extern void set_var_led_on_time3(int32_t value);
 extern bool get_var_use_pir_sensor();
 extern void set_var_use_pir_sensor(bool value);
+extern bool get_var_use_automatic_mode();
+extern void set_var_use_automatic_mode(bool value);
 
 
 #ifdef __cplusplus

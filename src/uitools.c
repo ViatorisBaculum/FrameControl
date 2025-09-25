@@ -7,6 +7,7 @@
 
 #include "uitools.h"
 #include "ui/fonts.h"
+#include "ui/images.h"
 #include "ui/vars.h"
 #include "ui/screens.h"
 #include "ui/actions.h"
@@ -34,6 +35,7 @@ static uint32_t last_charged1;
 static uint32_t last_charged2;
 static uint32_t last_charged3;
 bool use_pir_sensor;
+bool use_automatic_mode;
 
 typedef struct
 {
@@ -117,10 +119,35 @@ void set_var_use_pir_sensor(bool value) {
     use_pir_sensor = value;
 }
 
+bool get_var_use_automatic_mode() {
+    return use_automatic_mode;
+}
+
+void set_var_use_automatic_mode(bool value) {
+    use_automatic_mode = value;
+}
+
+static void set_battery_icon(int idx, float pct) {
+    const lv_image_dsc_t *icon = &img_ladezustand_100;
+    if (pct < 20.0f) icon = &img_ladezustand_0;
+    else if (pct < 40.0f) icon = &img_ladezustand_20;
+    else if (pct < 60.0f) icon = &img_ladezustand_40;
+    else if (pct < 80.0f) icon = &img_ladezustand_60;
+    else if (pct < 90.0f) icon = &img_ladezustand_80;
+    else icon = &img_ladezustand_100;
+
+    lv_obj_t *image = (idx == 0) ? objects.image_battery_percentage_1 :
+                      (idx == 1) ? objects.image_battery_percentage_2 :
+                                   objects.image_battery_percentage_3;
+    if (image) lv_image_set_src(image, icon);
+}
+
+
 // Implementations for ui/vars.h (battery + LED states)
 float get_var_battery_percentage1() { return battery_percentage1; }
 void set_var_battery_percentage1(float value) { 
     battery_percentage1 = value; 
+    set_battery_icon(0, battery_percentage1);
     if (objects.label_battery_percentage_1 != NULL) {
         int pct = (int)(battery_percentage1 + 0.5f);
         lv_label_set_text_fmt(objects.label_battery_percentage_1, "%d%%", (int)pct);
@@ -130,6 +157,7 @@ void set_var_battery_percentage1(float value) {
 float get_var_battery_percentage2() { return battery_percentage2; }
 void set_var_battery_percentage2(float value) { 
     battery_percentage2 = value; 
+    set_battery_icon(1, battery_percentage2);
     if (objects.label_battery_percentage_2 != NULL) {
         int pct = (int)(battery_percentage2 + 0.5f);
         lv_label_set_text_fmt(objects.label_battery_percentage_2, "%d%%", (int)pct);
@@ -139,6 +167,7 @@ void set_var_battery_percentage2(float value) {
 float get_var_battery_percentage3() { return battery_percentage3; }
 void set_var_battery_percentage3(float value) { 
     battery_percentage3 = value; 
+    set_battery_icon(2, battery_percentage3);
     if (objects.label_battery_percentage_3 != NULL) {
         int pct = (int)(battery_percentage3 + 0.5f);
         lv_label_set_text_fmt(objects.label_battery_percentage_3, "%d%%", (int)pct);
@@ -397,20 +426,22 @@ static void update_pending_animation_visuals(int idx, float value)
         break;
     }
 
+    set_battery_icon(idx, value);
+
     // Update brightness arc and its label
     switch (idx)
     {
     case 0:
         set_arc_value_guarded(objects.brightness_percentage_1, int_value);
-        if (objects.label_brightness_1) lv_label_set_text_fmt(objects.label_brightness_1, "%d%%", (int)int_value);
+        //if (objects.label_brightness_1) lv_label_set_text_fmt(objects.label_brightness_1, "%d%%", (int)int_value);
         break;
     case 1:
         set_arc_value_guarded(objects.brightness_percentage_2, int_value);
-        if (objects.label_brightness_2) lv_label_set_text_fmt(objects.label_brightness_2, "%d%%", (int)int_value);
+        //if (objects.label_brightness_2) lv_label_set_text_fmt(objects.label_brightness_2, "%d%%", (int)int_value);
         break;
     case 2:
         set_arc_value_guarded(objects.brightness_percentage_3, int_value);
-        if (objects.label_brightness_3) lv_label_set_text_fmt(objects.label_brightness_3, "%d%%", (int)int_value);
+        //if (objects.label_brightness_3) lv_label_set_text_fmt(objects.label_brightness_3, "%d%%", (int)int_value);
         break;
     }
 }

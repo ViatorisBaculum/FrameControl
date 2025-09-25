@@ -47,6 +47,9 @@ extern "C"
     bool get_var_use_pir_sensor();
     void set_var_use_pir_sensor(bool value);
 
+    bool get_var_use_automatic_mode();
+    void set_var_use_automatic_mode(bool value);
+
 #ifdef __cplusplus
 }
 #endif

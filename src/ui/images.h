@@ -19,6 +19,12 @@ extern const lv_img_dsc_t img_symbol_exodia_inverted_small;
 extern const lv_img_dsc_t img_symbol_gods_inverted_small;
 extern const lv_img_dsc_t img_symbol_automatikmodus;
 extern const lv_img_dsc_t img_symbol_abwesenheitskontrolle;
+extern const lv_img_dsc_t img_ladezustand_0;
+extern const lv_img_dsc_t img_ladezustand_20;
+extern const lv_img_dsc_t img_ladezustand_40;
+extern const lv_img_dsc_t img_ladezustand_60;
+extern const lv_img_dsc_t img_ladezustand_80;
+extern const lv_img_dsc_t img_ladezustand_100;
 
 #ifndef EXT_IMG_DESC_T
 #define EXT_IMG_DESC_T
@@ -28,7 +34,7 @@ typedef struct _ext_img_desc_t {
 } ext_img_desc_t;
 #endif
 
-extern const ext_img_desc_t images[12];
+extern const ext_img_desc_t images[18];
 
 
 #ifdef __cplusplus
