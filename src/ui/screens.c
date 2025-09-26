@@ -384,6 +384,7 @@ void create_screen_main() {
                     // tab_settings
                     lv_obj_t *obj = lv_tabview_add_tab(parent_obj, "Einstellungen");
                     objects.tab_settings = obj;
+                    lv_obj_clear_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
                     add_style_active_tab(obj);
                     {
                         lv_obj_t *parent_obj = obj;
@@ -854,7 +855,7 @@ void create_screen_main() {
                             // Image_automatic_mode
                             lv_obj_t *obj = lv_image_create(parent_obj);
                             objects.image_automatic_mode = obj;
-                            lv_obj_set_pos(obj, 54, 167);
+                            lv_obj_set_pos(obj, 52, 171);
                             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                             lv_image_set_src(obj, &img_symbol_automatikmodus);
                         }
@@ -862,7 +863,7 @@ void create_screen_main() {
                             lv_obj_t *obj = lv_switch_create(parent_obj);
                             objects.obj0 = obj;
                             lv_obj_set_pos(obj, 84, 165);
-                            lv_obj_set_size(obj, 30, 16);
+                            lv_obj_set_size(obj, 48, 24);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_obj0, LV_EVENT_ALL, 0);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_KNOB | LV_STATE_CHECKED);
@@ -873,7 +874,7 @@ void create_screen_main() {
                             // Image_Absence_control
                             lv_obj_t *obj = lv_image_create(parent_obj);
                             objects.image_absence_control = obj;
-                            lv_obj_set_pos(obj, 180, 167);
+                            lv_obj_set_pos(obj, 185, 171);
                             lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
                             lv_image_set_src(obj, &img_symbol_abwesenheitskontrolle);
                         }
@@ -881,7 +882,7 @@ void create_screen_main() {
                             lv_obj_t *obj = lv_switch_create(parent_obj);
                             objects.obj1 = obj;
                             lv_obj_set_pos(obj, 210, 165);
-                            lv_obj_set_size(obj, 30, 17);
+                            lv_obj_set_size(obj, 48, 24);
                             lv_obj_add_event_cb(obj, event_handler_cb_main_obj1, LV_EVENT_ALL, 0);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff00d5ff), LV_PART_KNOB | LV_STATE_DEFAULT);
                             lv_obj_set_style_bg_color(obj, lv_color_hex(0xff303030), LV_PART_KNOB | LV_STATE_CHECKED);

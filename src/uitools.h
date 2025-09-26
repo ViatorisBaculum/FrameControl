@@ -50,6 +50,8 @@ extern "C"
     bool get_var_use_automatic_mode();
     void set_var_use_automatic_mode(bool value);
 
+    void set_arc_value_guarded(lv_obj_t *arc, int32_t value);
+
 #ifdef __cplusplus
 }
 #endif

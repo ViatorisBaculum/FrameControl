@@ -52,6 +52,7 @@ struct CmdPayload
 {
   uint16_t brightness; // 0..100
   uint8_t state;       // 0/1
+  uint8_t automatic;   // 0/1 automatic mode
   uint8_t reqTelem;    // 0/1 request telemetry
 };
 
@@ -59,6 +60,7 @@ struct TelemetryPayload
 {
   uint16_t appliedBrightness; // 0..100 actually set
   uint8_t appliedState;       // 0/1 actually set
+  uint8_t appliedAutomatic;   // 0/1 actual automatic mode
   uint16_t halfVoltageMv;     // half of battery voltage in mV (e.g., 1890)
   uint32_t operatingHours;    // total operating hours
   uint32_t lastChargedDate;   // device-defined
@@ -73,6 +75,7 @@ struct Receiver
   // desired (master)
   uint16_t desiredBrightness;
   bool desiredState;
+  bool desiredAutomatic;
   // last telemetry
   TelemetryPayload telemetry;
   // set when new telemetry arrives (handled in loop task)
@@ -84,6 +87,8 @@ struct Receiver
 Receiver receivers[NUM_RECEIVERS];
 auto lv_last_tick = millis();
 Preferences preferences;
+static int8_t g_lastSavedAutomaticMode = -1;
+static int8_t g_lastSavedPirSensor = -1;
 
 // Function definitions
 void messageReceived(const esp_now_recv_info *info, const uint8_t *data, int len);
@@ -97,6 +102,34 @@ float calculateBatteryPercentage(float voltage);
 void setLEDState();
 bool getLEDState(char preset);
 void printMasterMac();
+
+extern "C" void uitools_on_automatic_mode_changed(bool value)
+{
+  int8_t asInt = value ? 1 : 0;
+  if (g_lastSavedAutomaticMode == asInt)
+  {
+    return;
+  }
+
+  preferences.begin("framecontrol", false);
+  preferences.putBool("use_autom_mode", value);
+  preferences.end();
+  g_lastSavedAutomaticMode = asInt;
+}
+
+extern "C" void uitools_on_pir_sensor_changed(bool value)
+{
+  int8_t asInt = value ? 1 : 0;
+  if (g_lastSavedPirSensor == asInt)
+  {
+    return;
+  }
+
+  preferences.begin("framecontrol", false);
+  preferences.putBool("use_pir_sensor", value);
+  preferences.end();
+  g_lastSavedPirSensor = asInt;
+}
 
 void initESPNow()
 {
@@ -142,6 +175,7 @@ void initESPNow()
       break;
     }
     receivers[i].desiredState = getLEDState('1' + i);
+    receivers[i].desiredAutomatic = get_var_use_automatic_mode();
     receivers[i].telemetry = {};
 
     if (esp_now_add_peer(&receivers[i].peerInfo) != ESP_OK)
@@ -244,11 +278,12 @@ void IRAM_ATTR messageReceived(const esp_now_recv_info *info, const uint8_t *dat
               // Mark for UI update in loop task (avoid calling LVGL from WiFi/ESPNOW context)
               receiver.telemetryDirty = true;
               sendAck(receiver, hdr->channel, hdr->seq);
-              Serial.printf("TELEM %02X:%02X:%02X:%02X:%02X:%02X ch%u seq%u: bright=%u, state=%u, halfV=%u, hours=%u, date=%u\n",
+              Serial.printf("TELEM %02X:%02X:%02X:%02X:%02X:%02X ch%u seq%u: bright=%u, state=%u, auto=%u, halfV=%u, hours=%u, date=%u\n",
                             mac ? mac[0] : 0, mac ? mac[1] : 0, mac ? mac[2] : 0, mac ? mac[3] : 0, mac ? mac[4] : 0, mac ? mac[5] : 0,
                             hdr->channel, hdr->seq,
                             (unsigned)receiver.telemetry.appliedBrightness,
                             (unsigned)receiver.telemetry.appliedState,
+                            (unsigned)receiver.telemetry.appliedAutomatic,
                             (unsigned)receiver.telemetry.halfVoltageMv,
                             (unsigned)receiver.telemetry.operatingHours,
                             (unsigned)receiver.telemetry.lastChargedDate);
@@ -273,6 +308,8 @@ void sendMessage(Receiver &receiver)
       break;
     }
   }
+  receiver.desiredAutomatic = get_var_use_automatic_mode();
+
   if (idx < 3)
   {
     switch (idx)
@@ -307,6 +344,7 @@ void sendMessage(Receiver &receiver)
   CmdPayload cmd{};
   cmd.brightness = (uint16_t)receiver.desiredBrightness;
   cmd.state = receiver.desiredState ? 1 : 0;
+  cmd.automatic = receiver.desiredAutomatic ? 1 : 0;
   cmd.reqTelem = 1;
 
   MsgHdr hdr{};
@@ -379,6 +417,7 @@ float calculateBatteryPercentage(float halfVoltageMv)
 
 void updateBatteryPercentage()
 {
+  const uint8_t desiredAutomatic = get_var_use_automatic_mode() ? 1 : 0;
   for (size_t i = 0; i < NUM_RECEIVERS; ++i)
   {
     bool desiredState = false;
@@ -422,7 +461,8 @@ void updateBatteryPercentage()
 
     const TelemetryPayload &tele = receivers[i].telemetry;
     bool pending = (tele.appliedState != (desiredState ? 1 : 0)) ||
-                   (tele.appliedBrightness != static_cast<uint16_t>(desiredBrightness + 0.5f));
+                   (tele.appliedBrightness != static_cast<uint16_t>(desiredBrightness + 0.5f)) ||
+                   (tele.appliedAutomatic != desiredAutomatic);
 
     float batteryPct = calculateBatteryPercentage(static_cast<float>(tele.halfVoltageMv));
     uitools_update_channel_feedback(static_cast<int>(i),
@@ -477,7 +517,13 @@ void setup()
   uint32_t b1 = preferences.getUInt("brightness_led1", 50);
   uint32_t b2 = preferences.getUInt("brightness_led2", 50);
   uint32_t b3 = preferences.getUInt("brightness_led3", 50);
+  bool automaticMode = preferences.getBool("use_autom_mode", false);
+  bool pirSensor = preferences.getBool("use_pir_sensor", false);
   preferences.end();
+  g_lastSavedAutomaticMode = automaticMode ? 1 : 0;
+  g_lastSavedPirSensor = pirSensor ? 1 : 0;
+  set_var_use_automatic_mode(automaticMode);
+  set_var_use_pir_sensor(pirSensor);
   set_var_brightness_led1((float)b1);
   set_var_brightness_led2((float)b2);
   set_var_brightness_led3((float)b3);

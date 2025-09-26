@@ -12,6 +12,10 @@
 #include "ui/screens.h"
 #include "ui/actions.h"
 
+extern void uitools_on_automatic_mode_changed(bool value);
+
+extern void uitools_on_pir_sensor_changed(bool value);
+
 extern lv_obj_t *tick_value_change_obj;
 
 extern void (*tick_screen_funcs[])(void);
@@ -83,14 +87,17 @@ static void update_brightness_visuals(int idx, float value)
     case 0:
         label = objects.label_brightness_1;
         brightness_led1 = value;
+        set_arc_value_guarded(objects.brightness_percentage_1, value);
         break;
     case 1:
         label = objects.label_brightness_2;
         brightness_led2 = value;
+        set_arc_value_guarded(objects.brightness_percentage_2, value);
         break;
     case 2:
         label = objects.label_brightness_3;
         brightness_led3 = value;
+        set_arc_value_guarded(objects.brightness_percentage_3, value);
         break;
     default:
         break;
@@ -102,13 +109,59 @@ static void update_brightness_visuals(int idx, float value)
     }
 }
 
-static void set_arc_value_guarded(lv_obj_t *arc, int32_t value)
+static int32_t normalize_angle_360(int32_t angle)
+{
+    while (angle < 0) angle += 360;
+    while (angle >= 360) angle -= 360;
+    return angle;
+}
+
+static void apply_centered_arc_fill(lv_obj_t *arc, int32_t value)
 {
     if (arc == NULL) return;
+
+    if (lv_arc_get_mode(arc) != LV_ARC_MODE_SYMMETRICAL)
+    {
+        return;
+    }
+
+    int32_t bg_start = (int32_t)lv_arc_get_bg_angle_start(arc);
+    int32_t bg_end = (int32_t)lv_arc_get_bg_angle_end(arc);
+
+    int32_t span = bg_end - bg_start;
+    if (span <= 0) span += 360;
+    if (span <= 0) return;
+
+    int32_t mid = normalize_angle_360(bg_start + span / 2);
+
+    if (value < 0) value = 0;
+    if (value > 100) value = 100;
+
+    int32_t delta = (int32_t)(((int64_t)span * value) / 200);
+    int32_t max_delta = span / 2;
+    if (delta > max_delta) delta = max_delta;
+
+    int32_t new_start = normalize_angle_360(mid - delta);
+    int32_t new_end = normalize_angle_360(mid + delta);
+
+    lv_arc_set_start_angle(arc, new_start);
+    lv_arc_set_end_angle(arc, new_end);
+}
+
+
+
+void set_arc_value_guarded(lv_obj_t *arc, int32_t value)
+{
+    if (arc == NULL) return;
+
+    if (value < 0) value = 0;
+    if (value > 100) value = 100;
 
     tick_value_change_obj = arc;
     lv_arc_set_value(arc, value);
     tick_value_change_obj = NULL;
+
+    apply_centered_arc_fill(arc, value);
 }
 
 bool get_var_use_pir_sensor() {
@@ -116,7 +169,11 @@ bool get_var_use_pir_sensor() {
 }
 
 void set_var_use_pir_sensor(bool value) {
+    if (use_pir_sensor == value) {
+        return;
+    }
     use_pir_sensor = value;
+    uitools_on_pir_sensor_changed(value);
 }
 
 bool get_var_use_automatic_mode() {
@@ -124,7 +181,11 @@ bool get_var_use_automatic_mode() {
 }
 
 void set_var_use_automatic_mode(bool value) {
+    if (use_automatic_mode == value) {
+        return;
+    }
     use_automatic_mode = value;
+    uitools_on_automatic_mode_changed(value);
 }
 
 static void set_battery_icon(int idx, float pct) {
@@ -147,6 +208,7 @@ static void set_battery_icon(int idx, float pct) {
 float get_var_battery_percentage1() { return battery_percentage1; }
 void set_var_battery_percentage1(float value) { 
     battery_percentage1 = value; 
+    set_arc_value_guarded(objects.battery_percentage_1, value);
     set_battery_icon(0, battery_percentage1);
     if (objects.label_battery_percentage_1 != NULL) {
         int pct = (int)(battery_percentage1 + 0.5f);
@@ -157,6 +219,7 @@ void set_var_battery_percentage1(float value) {
 float get_var_battery_percentage2() { return battery_percentage2; }
 void set_var_battery_percentage2(float value) { 
     battery_percentage2 = value; 
+    set_arc_value_guarded(objects.battery_percentage_2, value);
     set_battery_icon(1, battery_percentage2);
     if (objects.label_battery_percentage_2 != NULL) {
         int pct = (int)(battery_percentage2 + 0.5f);
@@ -167,6 +230,7 @@ void set_var_battery_percentage2(float value) {
 float get_var_battery_percentage3() { return battery_percentage3; }
 void set_var_battery_percentage3(float value) { 
     battery_percentage3 = value; 
+    set_arc_value_guarded(objects.battery_percentage_3, value);
     set_battery_icon(2, battery_percentage3);
     if (objects.label_battery_percentage_3 != NULL) {
         int pct = (int)(battery_percentage3 + 0.5f);
