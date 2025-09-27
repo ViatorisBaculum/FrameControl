@@ -588,7 +588,12 @@ void uitools_install_tick_screen_hook(void)
     }
 
     tick_screen_funcs[0] = uitools_tick_screen_main;
+
+    update_brightness_visuals(0, brightness_led1);
+    update_brightness_visuals(1, brightness_led2);
+    update_brightness_visuals(2, brightness_led3);
 }
+
 
 // UI event: refresh brightness from slider and +/- buttons
 void action_change_brightness(lv_event_t *e)
